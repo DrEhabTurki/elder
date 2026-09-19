@@ -3,103 +3,136 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>دوائي - مساعد الأدوية لكبار السن</title>
+  <title>دوائي - مساعد كبار السن للأدوية</title>
   <link rel="manifest" href="manifest.json">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
   <style>
-    body { font-size: 1.2rem; background-color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
-    .btn-lg { padding: 1rem 1.5rem; font-size: 1.25rem; font-weight: bold; border-radius: 1rem; }
+    body { font-size: 1.15rem; background-color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
+    .btn-lg { padding: 0.85rem 1.25rem; font-size: 1.2rem; font-weight: bold; border-radius: 1rem; }
+    .badge { display: inline-block; padding: 0.25rem 0.6rem; border-radius: 0.5rem; font-size: 0.85rem; font-weight: bold; }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-900 min-h-screen pb-20">
+<body class="bg-slate-100 text-slate-900 min-h-screen pb-24">
 
   <!-- Header -->
-  <header class="bg-blue-700 text-white p-4 shadow-lg text-center">
+  <header class="bg-blue-700 text-white p-4 shadow-lg text-center sticky top-0 z-50">
     <h1 class="text-3xl font-extrabold">💊 دوائي</h1>
-    <p class="text-sm opacity-90">مساعدك الشخصي لتنظيم الأدوية والسلامة</p>
+    <p class="text-sm opacity-90">مساعدك الذكي لإدارة الجرعات وفحص التداخلات الدوائية</p>
   </header>
 
-  <main class="max-w-md mx-auto p-4 space-y-6">
+  <main class="max-w-xl mx-auto p-4 space-y-6">
 
     <!-- Add Drug Section -->
     <section class="bg-white p-5 rounded-2xl shadow-md border-2 border-blue-200">
-      <h2 class="text-2xl font-bold mb-4 text-blue-900">إضافة دواء جديد</h2>
+      <h2 class="text-2xl font-bold mb-4 text-blue-900 flex items-center gap-2">
+        <span>➕</span> إضافة دواء وجرعاته
+      </h2>
 
-      <!-- Input Methods -->
       <div class="space-y-4">
+        <!-- Drug Name Input -->
         <div>
-          <label class="block font-bold mb-1">اسم الدواء:</label>
-          <input type="text" id="drugInput" list="egyptianDrugs" placeholder="اكتب اسم الدواء أو اختره..." class="w-full p-3 border-2 border-slate-300 rounded-xl text-lg focus:border-blue-600 outline-none">
+          <label class="block font-bold mb-1">اسم الدواء / المادة الفعالة:</label>
+          <input type="text" id="drugInput" list="egyptianDrugs" placeholder="مثال: Panadol أو Paracetamol..." class="w-full p-3 border-2 border-slate-300 rounded-xl text-lg focus:border-blue-600 outline-none">
           <datalist id="egyptianDrugs">
             <option value="Panadol (Paracetamol)">
             <option value="Cataflam (Diclofenac)">
             <option value="Congestal (Paracetamol/Pseudoephedrine)">
             <option value="Augmentin (Amoxicillin/Clavulanate)">
             <option value="Concor (Bisoprolol)">
-            <option value="Aspirin Protect (Acetylsalicylic acid)">
+            <option value="Aspirin (Acetylsalicylic acid)">
             <option value="Glucophage (Metformin)">
             <option value="Marevan (Warfarin)">
+            <option value="Plavix (Clopidogrel)">
+            <option value="Brufen (Ibuprofen)">
+            <option value="Ciprofloxacin">
+            <option value="Crestor (Rosuvastatin)">
           </datalist>
         </div>
 
-        <!-- Inputs Action Buttons -->
+        <!-- Input Helper Buttons -->
         <div class="grid grid-cols-2 gap-3">
-          <button onclick="startVoiceInput()" class="bg-emerald-600 hover:bg-emerald-700 text-white p-3 rounded-xl font-bold flex items-center justify-center gap-2 text-base">
+          <button onclick="startVoiceInput()" class="bg-emerald-600 hover:bg-emerald-700 text-white p-3 rounded-xl font-bold flex items-center justify-center gap-2 text-base shadow">
             🎙️ إدخال صوتي
           </button>
-          <label class="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-xl font-bold flex items-center justify-center gap-2 text-base cursor-pointer">
+          <label class="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-xl font-bold flex items-center justify-center gap-2 text-base shadow cursor-pointer text-center">
             📷 مسح بالكاميرا
             <input type="file" accept="image/*" capture="environment" onchange="processImage(this)" class="hidden">
           </label>
         </div>
 
-        <div id="ocrStatus" class="text-sm text-purple-700 font-bold hidden">جاري قراءة علبة الدواء... ⏳</div>
+        <div id="ocrStatus" class="text-sm text-purple-700 font-bold hidden bg-purple-50 p-2 rounded-lg border border-purple-200">
+          ⏳ جاري استخراج الاسم من الصورة عبر OCR...
+        </div>
 
-        <div>
-          <label class="block font-bold mb-1">مواعيد الجرعة:</label>
-          <input type="time" id="drugTime" class="w-full p-3 border-2 border-slate-300 rounded-xl text-lg">
+        <!-- Multiple Dose Schedules Setup -->
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-300 space-y-3">
+          <label class="block font-bold text-slate-800">مواعيد الجرعات اليومية لهذا الدواء:</label>
+          <div id="doseInputsContainer" class="space-y-2">
+            <div class="flex items-center gap-2 dose-row">
+              <input type="time" class="dose-time w-full p-2.5 border-2 border-slate-300 rounded-xl text-lg bg-white">
+              <button type="button" onclick="removeDoseRow(this)" class="text-red-500 hover:text-red-700 p-2 text-xl font-bold" title="حذف الموعد">✕</button>
+            </div>
+          </div>
+          <button type="button" onclick="addDoseRow()" class="w-full py-2 px-3 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded-xl text-sm flex items-center justify-center gap-1">
+            ➕ إضافة موعد جرعة آخر لنفس الدواء
+          </button>
         </div>
 
         <button onclick="addDrug()" class="w-full bg-blue-600 hover:bg-blue-700 text-white btn-lg shadow-md">
-          ➕ حفظ الدواء
+          💾 حفظ الدواء بجميع جرعاته
         </button>
       </div>
     </section>
 
-    <!-- Drug Interactions Checker Section -->
+    <!-- Real-Time Online Interactions Checker Section -->
     <section class="bg-amber-50 p-5 rounded-2xl shadow-md border-2 border-amber-300">
-      <h2 class="text-xl font-bold mb-2 text-amber-900">🔍 فحص التداخلات الدوائية أونلاين</h2>
-      <p class="text-sm text-amber-800 mb-3">افحص تعارض الأدوية المسجلة لديك لحمايتك من التداخلات الخطيرة.</p>
-      <button onclick="checkInteractionsOnline()" class="w-full bg-amber-600 hover:bg-amber-700 text-white btn-lg">
-        🌐 فحص التعارضات الآن
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-xl font-bold text-amber-900 flex items-center gap-2">
+          <span>🔍</span> فحص التداخلات الدوائية المباشر
+        </h2>
+        <span class="badge bg-amber-200 text-amber-900">RxNav API</span>
+      </div>
+      <p class="text-sm text-amber-800 mb-4">
+        يقوم البرنامج بالربط مع قاعدة البيانات الطبية العالمية (National Library of Medicine) لفحص التعارضات الحقيقية والتفاعلات الخطيرة بين أدوية القائمة.
+      </p>
+      <button onclick="checkInteractionsOnline()" class="w-full bg-amber-600 hover:bg-amber-700 text-white btn-lg shadow">
+        🌐 بدء الفحص الدوائي الفعلي الآن
       </button>
-      <div id="interactionResults" class="mt-3 text-base space-y-2"></div>
+
+      <div id="interactionResults" class="mt-4 text-base space-y-3"></div>
     </section>
 
     <!-- Daily Schedule Section -->
     <section class="bg-white p-5 rounded-2xl shadow-md border-2 border-slate-200">
-      <h2 class="text-2xl font-bold mb-4 text-slate-800">📋 أدوية اليوم</h2>
-      <div id="drugList" class="space-y-3">
-        <!-- Dynamic Drugs List -->
+      <h2 class="text-2xl font-bold mb-4 text-slate-800 flex items-center justify-between">
+        <span>📋 أدوية اليوم والجرعات</span>
+        <span id="drugCountBadge" class="text-xs bg-blue-100 text-blue-800 px-3 py-1 rounded-full">0 أدوية</span>
+      </h2>
+      <div id="drugList" class="space-y-4">
+        <!-- Dynamic Drugs & Doses List -->
       </div>
     </section>
 
     <!-- Side Effects Log Section -->
     <section class="bg-white p-5 rounded-2xl shadow-md border-2 border-slate-200">
-      <h2 class="text-xl font-bold mb-3 text-red-800">⚠️ تسجيل عرض جانبي</h2>
-      <input type="text" id="symptomInput" placeholder="ما العرض الذي تشعر به؟ (مثل: دوخة)" class="w-full p-3 border-2 border-slate-300 rounded-xl text-lg mb-3">
-      <button onclick="logSymptom()" class="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl font-bold">
-        حفظ العرض للطبيب
-      </button>
-      <ul id="symptomsList" class="mt-3 list-disc pr-5 text-sm text-slate-700 space-y-1"></ul>
+      <h2 class="text-xl font-bold mb-3 text-red-800 flex items-center gap-2">
+        <span>⚠️</span> تسجيل عرض جانبي للطبيب
+      </h2>
+      <div class="space-y-3">
+        <input type="text" id="symptomInput" placeholder="ما العرض الذي تشعر به؟ (مثلاً: دوخة، صداع، غثيان...)" class="w-full p-3 border-2 border-slate-300 rounded-xl text-lg">
+        <button onclick="logSymptom()" class="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl font-bold shadow">
+          تسجيل العرض
+        </button>
+      </div>
+      <ul id="symptomsList" class="mt-4 divide-y divide-slate-100 text-sm text-slate-700"></ul>
     </section>
 
   </main>
 
   <script>
-    let drugs = JSON.parse(localStorage.getItem('myDrugs')) || [];
-    let symptoms = JSON.parse(localStorage.getItem('mySymptoms')) || [];
+    let drugs = JSON.parse(localStorage.getItem('myDrugs_v2')) || [];
+    let symptoms = JSON.parse(localStorage.getItem('mySymptoms_v2')) || [];
 
     window.onload = function() {
       renderDrugs();
@@ -107,63 +140,129 @@
       requestNotificationPermission();
     };
 
-    // Save Drugs to LocalStorage
     function saveDrugs() {
-      localStorage.setItem('myDrugs', JSON.stringify(drugs));
+      localStorage.setItem('myDrugs_v2', JSON.stringify(drugs));
       renderDrugs();
     }
 
-    // Add Drug
+    // Dynamic Dose Inputs Management
+    function addDoseRow(timeVal = '') {
+      const container = document.getElementById('doseInputsContainer');
+      const div = document.createElement('div');
+      div.className = 'flex items-center gap-2 dose-row';
+      div.innerHTML = `
+        <input type="time" value="${timeVal}" class="dose-time w-full p-2.5 border-2 border-slate-300 rounded-xl text-lg bg-white">
+        <button type="button" onclick="removeDoseRow(this)" class="text-red-500 hover:text-red-700 p-2 text-xl font-bold" title="حذف الموعد">✕</button>
+      `;
+      container.appendChild(div);
+    }
+
+    function removeDoseRow(btn) {
+      const rows = document.querySelectorAll('.dose-row');
+      if (rows.length > 1) {
+        btn.closest('.dose-row').remove();
+      } else {
+        alert('يجب إبقاء موعد جرعة واحد على الأقل.');
+      }
+    }
+
+    // Add Drug with Multiple Doses
     function addDrug() {
       const name = document.getElementById('drugInput').value.trim();
-      const time = document.getElementById('drugTime').value;
+      const timeInputs = document.querySelectorAll('.dose-time');
+      
+      let doses = [];
+      timeInputs.forEach(input => {
+        if (input.value) {
+          doses.push({ id: Date.now() + Math.random(), time: input.value, taken: false });
+        }
+      });
 
       if (!name) {
-        alert('الرجاء إدخال اسم الدواء');
+        alert('الرجاء إدخال اسم الدواء.');
         return;
       }
 
-      drugs.push({ id: Date.now(), name, time, taken: false });
+      if (doses.length === 0) {
+        alert('الرجاء تحديد موعد جرعة واحد على الأقل.');
+        return;
+      }
+
+      drugs.push({
+        id: Date.now(),
+        name: name,
+        doses: doses
+      });
+
+      // Reset Form
       document.getElementById('drugInput').value = '';
-      document.getElementById('drugTime').value = '';
+      document.getElementById('doseInputsContainer').innerHTML = `
+        <div class="flex items-center gap-2 dose-row">
+          <input type="time" class="dose-time w-full p-2.5 border-2 border-slate-300 rounded-xl text-lg bg-white">
+          <button type="button" onclick="removeDoseRow(this)" class="text-red-500 hover:text-red-700 p-2 text-xl font-bold" title="حذف الموعد">✕</button>
+        </div>
+      `;
       saveDrugs();
     }
 
-    // Render Drugs
+    // Render Drugs & Their Individual Doses
     function renderDrugs() {
       const list = document.getElementById('drugList');
+      const badge = document.getElementById('drugCountBadge');
+      badge.innerText = `${drugs.length} أدوية`;
+
       if (drugs.length === 0) {
-        list.innerHTML = '<p class="text-slate-500 text-center">لا يوجد أدوية مسجلة حتى الآن.</p>';
+        list.innerHTML = '<p class="text-slate-500 text-center py-6">لا يوجد أدوية مسجلة حالياً.</p>';
         return;
       }
 
       list.innerHTML = drugs.map(drug => `
-        <div class="flex items-center justify-between p-4 rounded-xl border ${drug.taken ? 'bg-emerald-50 border-emerald-300' : 'bg-slate-50 border-slate-300'}">
-          <div>
-            <p class="font-bold text-xl ${drug.taken ? 'line-through text-slate-500' : 'text-slate-900'}">${drug.name}</p>
-            <p class="text-sm text-slate-600">الموعد: ${drug.time || 'غير محدد'}</p>
-          </div>
-          <div class="flex gap-2">
-            <button onclick="toggleTaken(${drug.id})" class="p-3 rounded-xl font-bold text-white ${drug.taken ? 'bg-slate-400' : 'bg-emerald-600 hover:bg-emerald-700'}">
-              ${drug.taken ? 'تم ✅' : 'أخذت الجرعة'}
+        <div class="p-4 rounded-xl border-2 border-slate-200 bg-slate-50 space-y-3">
+          <div class="flex items-center justify-between border-b pb-2">
+            <h3 class="font-extrabold text-xl text-blue-900">${drug.name}</h3>
+            <button onclick="deleteDrug(${drug.id})" class="text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-lg text-sm font-bold border border-red-200">
+              🗑️ حذف الدواء
             </button>
-            <button onclick="deleteDrug(${drug.id})" class="p-3 bg-red-100 text-red-600 rounded-xl font-bold">🗑️</button>
+          </div>
+
+          <div class="space-y-2">
+            <p class="text-xs font-bold text-slate-500">جرعات اليوم (${drug.doses.length}):</p>
+            ${drug.doses.map(dose => `
+              <div class="flex items-center justify-between p-3 rounded-lg border ${dose.taken ? 'bg-emerald-100 border-emerald-300' : 'bg-white border-slate-300'}">
+                <span class="font-bold text-slate-800 text-lg">⏰ الموعد: ${dose.time}</span>
+                <button onclick="toggleDoseTaken(${drug.id}, ${dose.id})" class="px-4 py-2 rounded-xl font-bold text-white transition-colors ${dose.taken ? 'bg-slate-500' : 'bg-emerald-600 hover:bg-emerald-700'}">
+                  ${dose.taken ? 'تم تناوله ✅' : 'أخذت الجرعة'}
+                </button>
+              </div>
+            `).join('')}
           </div>
         </div>
       `).join('');
     }
 
-    function toggleTaken(id) {
-      drugs = drugs.map(d => d.id === id ? { ...d, taken: !d.taken } : d);
+    function toggleDoseTaken(drugId, doseId) {
+      drugs = drugs.map(drug => {
+        if (drug.id === drugId) {
+          drug.doses = drug.doses.map(dose => {
+            if (dose.id === doseId) {
+              return { ...dose, taken: !dose.taken };
+            }
+            return dose;
+          });
+        }
+        return drug;
+      });
       saveDrugs();
     }
 
     function deleteDrug(id) {
-      drugs = drugs.filter(d => d.id !== id);
-      saveDrugs();
+      if (confirm('هل أنت تأكد من حذف هذا الدواء وجميع جرعاته؟')) {
+        drugs = drugs.filter(d => d.id !== id);
+        saveDrugs();
+      }
     }
 
-    // 1. Voice Input (Speech Recognition)
+    // Voice & OCR Functions
     function startVoiceInput() {
       if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
         alert('خاصية الإدخال الصوتي غير مدعومة في متصفحك.');
@@ -179,7 +278,6 @@
       };
     }
 
-    // 2. OCR Input via Camera (Tesseract.js)
     function processImage(input) {
       if (!input.files || !input.files[0]) return;
       const status = document.getElementById('ocrStatus');
@@ -200,30 +298,43 @@
       });
     }
 
-    // 3. Online Drug Interactions Check (RxNorm API)
+    // REAL-TIME ACCURATE INTERACTIONS CHECKER (RxNav / NIH API)
     async function checkInteractionsOnline() {
       const resultsDiv = document.getElementById('interactionResults');
       if (drugs.length < 2) {
-        resultsDiv.innerHTML = '<p class="text-amber-800 font-bold">يجب إضافة دواءين على الأقل لفحص التعارضات.</p>';
+        resultsDiv.innerHTML = '<div class="p-3 bg-amber-100 text-amber-900 font-bold rounded-xl">⚠️ يجب إضافة دواءين على الأقل في القائمة لإجراء فحص التداخلات.</div>';
         return;
       }
 
-      resultsDiv.innerHTML = '<p class="text-blue-700">جاري فحص التداخلات عبر قاعدة البيانات العالمية... ⏳</p>';
+      resultsDiv.innerHTML = `
+        <div class="p-4 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 font-bold flex items-center gap-2">
+          <span class="animate-spin">⏳</span> جاري الاستعلام الفعلي من المكتبة الوطنية الأمريكية للطب (RxNav)...
+        </div>
+      `;
 
       try {
-        // Fetch RxCUI codes for drug names
         let rxcuis = [];
+        let mappedDrugs = [];
+
         for (let drug of drugs) {
-          let cleanName = drug.name.split(' ')[0]; // Take first word
-          let res = await fetch(`https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(cleanName)}`);
+          let searchName = drug.name.replace(/\(.*?\)/g, '').trim().split(' ')[0];
+          let res = await fetch(`https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(searchName)}`);
           let data = await res.json();
+
           if (data.idGroup && data.idGroup.rxnormId) {
-            rxcuis.push(data.idGroup.rxnormId[0]);
+            let rxcui = data.idGroup.rxnormId[0];
+            rxcuis.push(rxcui);
+            mappedDrugs.push({ name: drug.name, rxcui: rxcui });
           }
         }
 
         if (rxcuis.length < 2) {
-          resultsDiv.innerHTML = '<p class="text-emerald-700 font-bold">✅ لم يتم العثور على تعارضات معروفة بين الأدوية المسجلة.</p>';
+          resultsDiv.innerHTML = `
+            <div class="p-4 bg-yellow-50 border border-yellow-300 rounded-xl text-yellow-900">
+              <b>ملاحظة:</b> لم نتمكن من التعرف الرقمي الصريح على المواد الفعالة لأكثر من دواء واحد من أسماء العلامات التجارية المدخلة.
+              <br><small>💡 نصيحة: يفضل كتابة اسم المادة الفعالة بالإنجليزية (مثل Paracetamol أو Warfarin) لضمان أعلى دقة في الفحص.</small>
+            </div>
+          `;
           return;
         }
 
@@ -232,20 +343,44 @@
 
         if (interactionData.fullInteractionTypeGroup) {
           let messages = [];
+
           interactionData.fullInteractionTypeGroup.forEach(group => {
             group.fullInteractionType.forEach(type => {
               type.interactionPair.forEach(pair => {
-                messages.push(`⚠️ <b>تعارض:</b> ${pair.description}`);
+                let drug1 = pair.interactionConcept[0].minConceptItem.name;
+                let drug2 = pair.interactionConcept[1].minConceptItem.name;
+                let description = pair.description;
+
+                messages.push(`
+                  <div class="p-3 bg-red-100 border-r-4 border-red-600 rounded-lg text-red-950 space-y-1 text-sm">
+                    <div class="font-extrabold text-base text-red-800">⛔ تعارض خطير بين: ${drug1} ↔️ ${drug2}</div>
+                    <p class="leading-relaxed"><b>تفاصيل التداخل:</b> ${description}</p>
+                  </div>
+                `);
               });
             });
           });
-          resultsDiv.innerHTML = `<div class="p-3 bg-red-100 border border-red-300 text-red-900 rounded-xl space-y-1">${messages.join('<br>')}</div>`;
+
+          resultsDiv.innerHTML = `
+            <div class="space-y-3">
+              <div class="p-3 bg-red-600 text-white font-bold rounded-xl flex items-center justify-between">
+                <span>🚨 تم اكتشاف ${messages.length} تداخل(ات) دوائية حقيقية!</span>
+              </div>
+              ${messages.join('')}
+              <p class="text-xs text-red-700 font-bold">* يرجى مراجعة الطبيب أو الصيدلي فوراً قبل تناول هذه الأدوية معاً.</p>
+            </div>
+          `;
         } else {
-          resultsDiv.innerHTML = '<p class="text-emerald-700 font-bold">✅ لا يوجد تعارض معترف به بين الأدوية التي تم فحصها.</p>';
+          resultsDiv.innerHTML = `
+            <div class="p-4 bg-emerald-100 border border-emerald-400 text-emerald-950 font-bold rounded-xl flex items-center gap-2">
+              <span>✅</span> لا يوجد تداخلات دوائية خطيرة مسجلة رسمياً بين الأدوية التي تم التثبت منها.
+            </div>
+          `;
         }
 
       } catch (err) {
-        resultsDiv.innerHTML = '<p class="text-red-600">حدث خطأ أثناء الاتصال بالإنترنت لفحص التعارضات.</p>';
+        console.error(err);
+        resultsDiv.innerHTML = '<div class="p-3 bg-red-100 text-red-800 font-bold rounded-xl">حدث خطأ أثناء الاتصال بقاعدة البيانات الطبية أونلاين. تأكد من الاتصال بالإنترنت.</div>';
       }
     }
 
@@ -253,15 +388,30 @@
     function logSymptom() {
       const val = document.getElementById('symptomInput').value.trim();
       if (!val) return;
-      symptoms.push({ date: new Date().toLocaleDateString('ar-EG'), text: val });
+      symptoms.unshift({ id: Date.now(), date: new Date().toLocaleDateString('ar-EG'), text: val });
       document.getElementById('symptomInput').value = '';
-      localStorage.setItem('mySymptoms', JSON.stringify(symptoms));
+      localStorage.setItem('mySymptoms_v2', JSON.stringify(symptoms));
       renderSymptoms();
     }
 
     function renderSymptoms() {
       const list = document.getElementById('symptomsList');
-      list.innerHTML = symptoms.map(s => `<li><b>${s.date}:</b> ${s.text}</li>`).join('');
+      if (symptoms.length === 0) {
+        list.innerHTML = '<li class="py-2 text-slate-400">لا يوجد أعراض جانبية مسجلة.</li>';
+        return;
+      }
+      list.innerHTML = symptoms.map(s => `
+        <li class="py-2.5 flex items-center justify-between">
+          <span><b>[${s.date}]</b> - ${s.text}</span>
+          <button onclick="deleteSymptom(${s.id})" class="text-slate-400 hover:text-red-600 text-xs font-bold">حذف</button>
+        </li>
+      `).join('');
+    }
+
+    function deleteSymptom(id) {
+      symptoms = symptoms.filter(s => s.id !== id);
+      localStorage.setItem('mySymptoms_v2', JSON.stringify(symptoms));
+      renderSymptoms();
     }
 
     function requestNotificationPermission() {
