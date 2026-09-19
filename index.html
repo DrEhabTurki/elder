@@ -422,10 +422,143 @@
 
     // REAL-TIME INTERACTIONS CHECKER FIXED
     async function checkInteractionsOnline() {
-      const resultsDiv = document.getElementById('interactionResults');
-      if (drugs.length < 2) {
-        resultsDiv.innerHTML = '<div class="p-3 bg-amber-100 text-amber-900 font-bold rounded-xl">⚠️ يجب إضافة دواءين على الأقل لإجراء الفحص.</div>';
-        return;
+      // 1. إضافة قاعدة بيانات محلية للتعارضات الشائعة لضمان عدم تفويتها
+const LOCAL_INTERACTIONS = [
+  {
+    ingredients: ["warfarin", "aspirin"],
+    severity: "خطير جداً (High Risk)",
+    description: "زيادة شديدة في خطر النزيف بسبب التآزر في تثبيط التخثر وتجميع الصفائح الدموية."
+  },
+  {
+    ingredients: ["warfarin", "ibuprofen"],
+    severity: "خطير جداً (High Risk)",
+    description: "تفاعل مضاعف يزيد من مخاطر نزيف الجهاز الهضمي وتثبيط وظائف الصفائح."
+  },
+  {
+    ingredients: ["sildenafil", "nitroglycerin"],
+    severity: "حرج (Contraindicated)",
+    description: "هبوط حاد ومفاجئ في ضغط الدم قد يؤدي إلى صدمة وعائية."
+  },
+  {
+    ingredients: ["clopidogrel", "omeprazole"],
+    severity: "متوسط إلى عالٍ",
+    description: "تثبيط إنزيم CYP2C19 مما يقلل تحول الكلوبيدوجريل إلى صورته النشطة ويقلل فاعليته."
+  },
+  {
+    ingredients: ["ace inhibitors", "spironolactone"],
+    severity: "مرتفع",
+    description: "خطر حدوث فرط بوتاسيوم الدم (Hyperkalemia) الشديد."
+  }
+];
+
+// 2. دالة الفحص المحدثة
+async function checkInteractionsOnline() {
+  const resultsDiv = document.getElementById('interactionResults');
+  if (drugs.length < 2) {
+    resultsDiv.innerHTML = '<div class="p-3 bg-amber-100 text-amber-900 font-bold rounded-xl">⚠️ يجب إضافة دواءين على الأقل لإجراء الفحص.</div>';
+    return;
+  }
+
+  resultsDiv.innerHTML = `
+    <div class="p-4 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 font-bold flex items-center gap-2">
+      <span class="animate-spin">⏳</span> جاري فحص التداخلات عبر المراجع المحلية وقواعد البيانات العالمية...
+    </div>
+  `;
+
+  let foundInteractions = [];
+
+  // أ) الفحص المحلي أولاً (Local Check)
+  for (let i = 0; i < drugs.length; i++) {
+    for (let j = i + 1; j < drugs.length; j++) {
+      let ing1 = (drugs[i].activeIngredient || drugs[i].name).toLowerCase().trim();
+      let ing2 = (drugs[j].activeIngredient || drugs[j].name).toLowerCase().trim();
+
+      LOCAL_INTERACTIONS.forEach(rule => {
+        let match1 = rule.ingredients.some(ing => ing1.includes(ing));
+        let match2 = rule.ingredients.some(ing => ing2.includes(ing));
+
+        if (match1 && match2) {
+          foundInteractions.push({
+            drug1: drugs[i].name + ` (${drugs[i].activeIngredient})`,
+            drug2: drugs[j].name + ` (${drugs[j].activeIngredient})`,
+            severity: rule.severity,
+            description: rule.description,
+            source: "المكتبة الإكلينيكية المدمجة"
+          });
+        }
+      });
+    }
+  }
+
+  // ب) الفحص الأونلاين عبر API كخط إضافي
+  try {
+    let rxcuis = [];
+    for (let drug of drugs) {
+      let searchName = (drug.activeIngredient || drug.name).trim();
+      let rxcui = await getRxCUI(searchName);
+      if (rxcui) rxcuis.push(rxcui);
+    }
+
+    if (rxcuis.length >= 2) {
+      let interactionData = await safeFetch(`https://rxnav.nlm.nih.gov/REST/interaction/list.json?rxcuis=${rxcuis.join('+')}`);
+
+      if (interactionData && interactionData.fullInteractionTypeGroup) {
+        interactionData.fullInteractionTypeGroup.forEach(group => {
+          group.fullInteractionType.forEach(type => {
+            type.interactionPair.forEach(pair => {
+              let d1 = pair.interactionConcept[0].minConceptItem.name;
+              let d2 = pair.interactionConcept[1].minConceptItem.name;
+              
+              let isDuplicate = foundInteractions.some(item => 
+                (item.drug1.toLowerCase().includes(d1.toLowerCase()) && item.drug2.toLowerCase().includes(d2.toLowerCase())) ||
+                (item.drug1.toLowerCase().includes(d2.toLowerCase()) && item.drug2.toLowerCase().includes(d1.toLowerCase()))
+              );
+
+              if (!isDuplicate) {
+                foundInteractions.push({
+                  drug1: d1,
+                  drug2: d2,
+                  severity: "ملاحظة طبية معتمدة",
+                  description: pair.description,
+                  source: "RxNav / NIH API"
+                });
+              }
+            });
+          });
+        });
+      }
+    }
+  } catch (e) {
+    console.error("Online API Check Error:", e);
+  }
+
+  // ج) عرض النتائج
+  if (foundInteractions.length > 0) {
+    let html = foundInteractions.map(item => `
+      <div class="p-3.5 bg-red-100 border-r-4 border-red-600 rounded-lg text-red-950 space-y-1 text-sm">
+        <div class="font-extrabold text-base text-red-800 flex items-center justify-between">
+          <span>⛔ تعارض بين: ${item.drug1} ↔️ ${item.drug2}</span>
+          <span class="text-xs bg-red-200 text-red-900 px-2 py-0.5 rounded">${item.source}</span>
+        </div>
+        <p class="leading-relaxed"><b>التفاصيل:</b> ${item.description}</p>
+      </div>
+    `).join('');
+
+    resultsDiv.innerHTML = `
+      <div class="space-y-3">
+        <div class="p-3 bg-red-600 text-white font-bold rounded-xl">🚨 تم اكتشاف ${foundInteractions.length} تداخل(ات) دوائية!</div>
+        ${html}
+      </div>
+    `;
+  } else {
+    resultsDiv.innerHTML = `
+      <div class="p-4 bg-emerald-100 border border-emerald-400 text-emerald-950 font-bold rounded-xl flex items-center gap-2">
+        <span>✅</span> لم يتم العثور على تعارضات مسجلة بين المواد الفعالة في قاعدة البيانات الحالية.
+      </div>
+    `;
+  }
+}
+
       }
 
       resultsDiv.innerHTML = `
