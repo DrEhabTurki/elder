@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>دواائي - مساعد الأدوية لكبار السن</title>
+  <link rel="manifest" href="manifest.json">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+  <style>
+    body { font-size: 1.2rem; background-color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
+    .btn-lg { padding: 1rem 1.5rem; font-size: 1.25rem; font-weight: bold; border-radius: 1rem; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-900 min-h-screen pb-20">
+
+  <!-- Header -->
+  <header class="bg-blue-700 text-white p-4 shadow-lg text-center">
+    <h1 class="text-3xl font-extrabold">💊 دواائي</h1>
+    <p class="text-sm opacity-90">مساعدك الشخصي لتنظيم الأدوية والسلامة</p>
+  </header>
+
+  <main class="max-w-md mx-auto p-4 space-y-6">
+
+    <!-- Add Drug Section -->
+    <section class="bg-white p-5 rounded-2xl shadow-md border-2 border-blue-200">
+      <h2 class="text-2xl font-bold mb-4 text-blue-900">إضافة دواء جديد</h2>
+
+      <!-- Input Methods -->
+      <div class="space-y-4">
+        <div>
+          <label class="block font-bold mb-1">اسم الدواء:</label>
+          <input type="text" id="drugInput" list="egyptianDrugs" placeholder="اكتب اسم الدواء أو اختره..." class="w-full p-3 border-2 border-slate-300 rounded-xl text-lg focus:border-blue-600 outline-none">
+          <datalist id="egyptianDrugs">
+            <option value="Panadol (Paracetamol)">
+            <option value="Cataflam (Diclofenac)">
+            <option value="Congestal (Paracetamol/Pseudoephedrine)">
+            <option value="Augmentin (Amoxicillin/Clavulanate)">
+            <option value="Concor (Bisoprolol)">
+            <option value="Aspirin Protect (Acetylsalicylic acid)">
+            <option value="Glucophage (Metformin)">
+            <option value="Marevan (Warfarin)">
+          </datalist>
+        </div>
+
+        <!-- Inputs Action Buttons -->
+        <div class="grid grid-cols-2 gap-3">
+          <button onclick="startVoiceInput()" class="bg-emerald-600 hover:bg-emerald-700 text-white p-3 rounded-xl font-bold flex items-center justify-center gap-2 text-base">
+            🎙️ إدخال صوتي
+          </button>
+          <label class="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-xl font-bold flex items-center justify-center gap-2 text-base cursor-pointer">
+            📷 مسح بالكاميرا
+            <input type="file" accept="image/*" capture="environment" onchange="processImage(this)" class="hidden">
+          </label>
+        </div>
+
+        <div id="ocrStatus" class="text-sm text-purple-700 font-bold hidden">جاري قراءة علبة الدواء... ⏳</div>
+
+        <div>
+          <label class="block font-bold mb-1">مواعيد الجرعة:</label>
+          <input type="time" id="drugTime" class="w-full p-3 border-2 border-slate-300 rounded-xl text-lg">
+        </div>
+
+        <button onclick="addDrug()" class="w-full bg-blue-600 hover:bg-blue-700 text-white btn-lg shadow-md">
+          ➕ حفظ الدواء
+        </button>
+      </div>
+    </section>
+
+    <!-- Drug Interactions Checker Section -->
+    <section class="bg-amber-50 p-5 rounded-2xl shadow-md border-2 border-amber-300">
+      <h2 class="text-xl font-bold mb-2 text-amber-900">🔍 فحص التداخلات الدوائية أونلاين</h2>
+      <p class="text-sm text-amber-800 mb-3">افحص تعارض الأدوية المسجلة لديك لحمايتك من التداخلات الخطيرة.</p>
+      <button onclick="checkInteractionsOnline()" class="w-full bg-amber-600 hover:bg-amber-700 text-white btn-lg">
+        🌐 فحص التعارضات الآن
+      </button>
+      <div id="interactionResults" class="mt-3 text-base space-y-2"></div>
+    </section>
+
+    <!-- Daily Schedule Section -->
+    <section class="bg-white p-5 rounded-2xl shadow-md border-2 border-slate-200">
+      <h2 class="text-2xl font-bold mb-4 text-slate-800">📋 أدوية اليوم</h2>
+      <div id="drugList" class="space-y-3">
+        <!-- Dynamic Drugs List -->
+      </div>
+    </section>
+
+    <!-- Side Effects Log Section -->
+    <section class="bg-white p-5 rounded-2xl shadow-md border-2 border-slate-200">
+      <h2 class="text-xl font-bold mb-3 text-red-800">⚠️ تسجيل عرض جانبي</h2>
+      <input type="text" id="symptomInput" placeholder="ما العرض الذي تشعر به؟ (مثل: دوخة)" class="w-full p-3 border-2 border-slate-300 rounded-xl text-lg mb-3">
+      <button onclick="logSymptom()" class="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl font-bold">
+        حفظ العرض للطبيب
+      </button>
+      <ul id="symptomsList" class="mt-3 list-disc pr-5 text-sm text-slate-700 space-y-1"></ul>
+    </section>
+
+  </main>
+
+  <script>
+    let drugs = JSON.parse(localStorage.getItem('myDrugs')) || [];
+    let symptoms = JSON.parse(localStorage.getItem('mySymptoms')) || [];
+
+    window.onload = function() {
+      renderDrugs();
+      renderSymptoms();
+      requestNotificationPermission();
+    };
+
+    // Save Drugs to LocalStorage
+    function saveDrugs() {
+      localStorage.setItem('myDrugs', JSON.stringify(drugs));
+      renderDrugs();
+    }
+
+    // Add Drug
+    function addDrug() {
+      const name = document.getElementById('drugInput').value.trim();
+      const time = document.getElementById('drugTime').value;
+
+      if (!name) {
+        alert('الرجاء إدخال اسم الدواء');
+        return;
+      }
+
+      drugs.push({ id: Date.now(), name, time, taken: false });
+      document.getElementById('drugInput').value = '';
+      document.getElementById('drugTime').value = '';
+      saveDrugs();
+    }
+
+    // Render Drugs
+    function renderDrugs() {
+      const list = document.getElementById('drugList');
+      if (drugs.length === 0) {
+        list.innerHTML = '<p class="text-slate-500 text-center">لا يوجد أدوية مسجلة حتى الآن.</p>';
+        return;
+      }
+
+      list.innerHTML = drugs.map(drug => `
+        <div class="flex items-center justify-between p-4 rounded-xl border ${drug.taken ? 'bg-emerald-50 border-emerald-300' : 'bg-slate-50 border-slate-300'}">
+          <div>
+            <p class="font-bold text-xl ${drug.taken ? 'line-through text-slate-500' : 'text-slate-900'}">${drug.name}</p>
+            <p class="text-sm text-slate-600">الموعد: ${drug.time || 'غير محدد'}</p>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="toggleTaken(${drug.id})" class="p-3 rounded-xl font-bold text-white ${drug.taken ? 'bg-slate-400' : 'bg-emerald-600 hover:bg-emerald-700'}">
+              ${drug.taken ? 'تم ✅' : 'أخذت الجرعة'}
+            </button>
+            <button onclick="deleteDrug(${drug.id})" class="p-3 bg-red-100 text-red-600 rounded-xl font-bold">🗑️</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function toggleTaken(id) {
+      drugs = drugs.map(d => d.id === id ? { ...d, taken: !d.taken } : d);
+      saveDrugs();
+    }
+
+    function deleteDrug(id) {
+      drugs = drugs.filter(d => d.id !== id);
+      saveDrugs();
+    }
+
+    // 1. Voice Input (Speech Recognition)
+    function startVoiceInput() {
+      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        alert('خاصية الإدخال الصوتي غير مدعومة في متصفحك.');
+        return;
+      }
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'ar-EG';
+      recognition.start();
+
+      recognition.onresult = function(event) {
+        document.getElementById('drugInput').value = event.results[0][0].transcript;
+      };
+    }
+
+    // 2. OCR Input via Camera (Tesseract.js)
+    function processImage(input) {
+      if (!input.files || !input.files[0]) return;
+      const status = document.getElementById('ocrStatus');
+      status.classList.remove('hidden');
+
+      Tesseract.recognize(
+        input.files[0],
+        'eng',
+        { logger: m => console.log(m) }
+      ).then(({ data: { text } }) => {
+        status.classList.add('hidden');
+        const cleanedText = text.replace(/[^a-zA-Z0-9 ]/g, "").trim();
+        if (cleanedText) {
+          document.getElementById('drugInput').value = cleanedText;
+        } else {
+          alert('تعذر قراءة النص من الصورة، يرجى المحاولة بصورة أوضح.');
+        }
+      });
+    }
+
+    // 3. Online Drug Interactions Check (RxNorm API)
+    async function checkInteractionsOnline() {
+      const resultsDiv = document.getElementById('interactionResults');
+      if (drugs.length < 2) {
+        resultsDiv.innerHTML = '<p class="text-amber-800 font-bold">يجب إضافة دواءين على الأقل لفحص التعارضات.</p>';
+        return;
+      }
+
+      resultsDiv.innerHTML = '<p class="text-blue-700">جاري فحص التداخلات عبر قاعدة البيانات العالمية... ⏳</p>';
+
+      try {
+        // Fetch RxCUI codes for drug names
+        let rxcuis = [];
+        for (let drug of drugs) {
+          let cleanName = drug.name.split(' ')[0]; // Take first word
+          let res = await fetch(`https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(cleanName)}`);
+          let data = await res.json();
+          if (data.idGroup && data.idGroup.rxnormId) {
+            rxcuis.push(data.idGroup.rxnormId[0]);
+          }
+        }
+
+        if (rxcuis.length < 2) {
+          resultsDiv.innerHTML = '<p class="text-emerald-700 font-bold">✅ لم يتم العثور على تعارضات معروفة بين الأدوية المسجلة.</p>';
+          return;
+        }
+
+        let interactionRes = await fetch(`https://rxnav.nlm.nih.gov/REST/interaction/list.json?rxcuis=${rxcuis.join('+')}`);
+        let interactionData = await interactionRes.json();
+
+        if (interactionData.fullInteractionTypeGroup) {
+          let messages = [];
+          interactionData.fullInteractionTypeGroup.forEach(group => {
+            group.fullInteractionType.forEach(type => {
+              type.interactionPair.forEach(pair => {
+                messages.push(`⚠️ <b>تعارض:</b> ${pair.description}`);
+              });
+            });
+          });
+          resultsDiv.innerHTML = `<div class="p-3 bg-red-100 border border-red-300 text-red-900 rounded-xl space-y-1">${messages.join('<br>')}</div>`;
+        } else {
+          resultsDiv.innerHTML = '<p class="text-emerald-700 font-bold">✅ لا يوجد تعارض معترف به بين الأدوية التي تم فحصها.</p>';
+        }
+
+      } catch (err) {
+        resultsDiv.innerHTML = '<p class="text-red-600">حدث خطأ أثناء الاتصال بالإنترنت لفحص التعارضات.</p>';
+      }
+    }
+
+    // Symptoms Logging
+    function logSymptom() {
+      const val = document.getElementById('symptomInput').value.trim();
+      if (!val) return;
+      symptoms.push({ date: new Date().toLocaleDateString('ar-EG'), text: val });
+      document.getElementById('symptomInput').value = '';
+      localStorage.setItem('mySymptoms', JSON.stringify(symptoms));
+      renderSymptoms();
+    }
+
+    function renderSymptoms() {
+      const list = document.getElementById('symptomsList');
+      list.innerHTML = symptoms.map(s => `<li><b>${s.date}:</b> ${s.text}</li>`).join('');
+    }
+
+    function requestNotificationPermission() {
+      if ('Notification' in window && Notification.permission !== 'granted') {
+        Notification.requestPermission();
+      }
+    }
+  </script>
+</body>
+</html>
