@@ -112,7 +112,7 @@
     <!-- Symptoms Logger -->
     <section class="bg-white p-5 rounded-2xl shadow-md border-2 border-slate-200">
       <h2 class="text-xl font-bold mb-3 text-red-800 flex items-center gap-2">
-        <span>⚠️</span> تسجيل عرض جانبي
+        <span>⚠️</span> تسجيل عرض جانبى
       </h2>
       <div class="space-y-3">
         <input type="text" id="symptomInput" placeholder="مثال: دوخة، غثيان، صداع..." class="w-full p-3 border-2 border-slate-300 rounded-xl text-lg">
@@ -125,7 +125,7 @@
 
   </main>
 
-  <!-- Drug Information Modal (NIH / MedlinePlus Data) -->
+  <!-- Drug Information Modal -->
   <div id="infoModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden border-2 border-blue-600 flex flex-col max-h-[85vh]">
       <div class="bg-blue-700 text-white p-4 flex items-center justify-between">
@@ -135,9 +135,7 @@
         </div>
         <button onclick="closeModal()" class="text-white hover:text-red-200 text-3xl font-bold leading-none">&times;</button>
       </div>
-      <div id="modalContent" class="p-5 overflow-y-auto space-y-4 text-base leading-relaxed text-slate-800">
-        <!-- Dynamic Content Fetched Online -->
-      </div>
+      <div id="modalContent" class="p-5 overflow-y-auto space-y-4 text-base leading-relaxed text-slate-800"></div>
       <div class="bg-slate-100 p-3 text-center border-t border-slate-200">
         <button onclick="closeModal()" class="bg-slate-700 hover:bg-slate-800 text-white font-bold px-6 py-2 rounded-xl text-base">إغلاق</button>
       </div>
@@ -149,6 +147,8 @@
     let symptoms = JSON.parse(localStorage.getItem('mySymptoms_v3')) || [];
     let debounceTimer;
 
+    const PROXY = "https://corsproxy.io/?";
+
     window.onload = function() {
       renderDrugs();
       renderSymptoms();
@@ -159,7 +159,40 @@
       renderDrugs();
     }
 
-    // Auto Suggest Active Ingredient via RxNav API based on Brand Name
+    // Fetch helper with fallback proxy
+    async function safeFetch(url) {
+      try {
+        let res = await fetch(url);
+        if (res.ok) return await res.json();
+      } catch (e) {}
+      
+      try {
+        let res = await fetch(PROXY + encodeURIComponent(url));
+        if (res.ok) return await res.json();
+      } catch (e) {}
+
+      return null;
+    }
+
+    // Get RxCUI helper
+    async function getRxCUI(term) {
+      if (!term) return null;
+      let cleanTerm = term.trim().split(' ')[0];
+      
+      let data = await safeFetch(`https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(cleanTerm)}`);
+      if (data && data.idGroup && data.idGroup.rxnormId) {
+        return data.idGroup.rxnormId[0];
+      }
+
+      let approxData = await safeFetch(`https://rxnav.nlm.nih.gov/REST/approximateTerm.json?term=${encodeURIComponent(cleanTerm)}&maxEntries=1`);
+      if (approxData && approxData.approximateGroup && approxData.approximateGroup.candidate) {
+        return approxData.approximateGroup.candidate[0].rxcui;
+      }
+
+      return null;
+    }
+
+    // Auto Suggest Active Ingredient
     function suggestActiveIngredient(brandName) {
       clearTimeout(debounceTimer);
       const suggestionsDiv = document.getElementById('ingredientSuggestions');
@@ -171,41 +204,33 @@
       }
 
       debounceTimer = setTimeout(async () => {
-        try {
-          let query = brandName.trim().split(' ')[0];
-          let res = await fetch(`https://rxnav.nlm.nih.gov/REST/spellConcept.json?name=${encodeURIComponent(query)}&term=1`);
-          let data = await res.json();
+        let query = brandName.trim().split(' ')[0];
+        let data = await safeFetch(`https://rxnav.nlm.nih.gov/REST/spellConcept.json?name=${encodeURIComponent(query)}&term=1`);
+        
+        let candidates = [];
+        if (data && data.suggestionGroup && data.suggestionGroup.suggestionList) {
+          candidates = data.suggestionGroup.suggestionList.suggestion || [];
+        }
 
-          let candidates = [];
-          if (data.suggestionGroup && data.suggestionGroup.suggestionList) {
-            candidates = data.suggestionGroup.suggestionList.suggestion || [];
-          }
-
-          if (candidates.length === 0) {
-            let res2 = await fetch(`https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(query)}`);
-            let data2 = await res2.json();
-            if (data2.idGroup && data2.idGroup.rxnormId) {
-              let rxcui = data2.idGroup.rxnormId[0];
-              let res3 = await fetch(`https://rxnav.nlm.nih.gov/REST/rxcui/${rxcui}/property.json?propName=RxNorm%20Name`);
-              let data3 = await res3.json();
-              if (data3.propConceptGroup) {
-                candidates.push(data3.propConceptGroup.propConcept[0].propValue);
-              }
+        if (candidates.length === 0) {
+          let rxcui = await getRxCUI(query);
+          if (rxcui) {
+            let propData = await safeFetch(`https://rxnav.nlm.nih.gov/REST/rxcui/${rxcui}/property.json?propName=RxNorm%20Name`);
+            if (propData && propData.propConceptGroup) {
+              candidates.push(propData.propConceptGroup.propConcept[0].propValue);
             }
           }
+        }
 
-          if (candidates.length > 0) {
-            let uniqueCandidates = [...new Set(candidates)].slice(0, 3);
-            container.innerHTML = uniqueCandidates.map(c => `
-              <button type="button" onclick="selectIngredient('${c}')" class="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded-md text-xs font-mono font-bold">
-                ${c}
-              </button>
-            `).join('');
-            suggestionsDiv.classList.remove('hidden');
-          } else {
-            suggestionsDiv.classList.add('hidden');
-          }
-        } catch (e) {
+        if (candidates.length > 0) {
+          let uniqueCandidates = [...new Set(candidates)].slice(0, 3);
+          container.innerHTML = uniqueCandidates.map(c => `
+            <button type="button" onclick="selectIngredient('${c}')" class="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded-md text-xs font-mono font-bold">
+              ${c}
+            </button>
+          `).join('');
+          suggestionsDiv.classList.remove('hidden');
+        } else {
           suggestionsDiv.classList.add('hidden');
         }
       }, 400);
@@ -267,7 +292,6 @@
         doses: doses
       });
 
-      // Reset Form
       document.getElementById('drugInput').value = '';
       document.getElementById('activeIngredientInput').value = '';
       document.getElementById('ingredientSuggestions').classList.add('hidden');
@@ -337,7 +361,7 @@
       }
     }
 
-    // FETCH DRUG INFO FROM NIH/PUBCHEM/MEDLINEPLUS ON CLICK
+    // SHOW DRUG INFO MODAL
     async function showDrugInfo(drugId) {
       const drug = drugs.find(d => d.id === drugId);
       if (!drug) return;
@@ -352,56 +376,43 @@
       content.innerHTML = '<div class="text-center py-8 text-blue-700 font-bold">⏳ جاري جلب المرجع الطبي الفعلي للمادة الفعالة أونلاين...</div>';
       modal.classList.remove('hidden');
 
-      try {
-        let ingName = drug.activeIngredient || drug.name;
-        let res = await fetch(`https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(ingName)}`);
-        let data = await res.json();
+      let ingName = drug.activeIngredient || drug.name;
+      let rxcui = await getRxCUI(ingName);
 
-        let rxcui = null;
-        if (data.idGroup && data.idGroup.rxnormId) {
-          rxcui = data.idGroup.rxnormId[0];
-        }
+      if (rxcui) {
+        let propData = await safeFetch(`https://rxnav.nlm.nih.gov/REST/rxcui/${rxcui}/allProperties.json?prop=ALL`);
+        let propConcept = propData && propData.propConceptGroup ? propData.propConceptGroup.propConcept : [];
+        let description = propConcept.find(p => p.propName === 'RxNorm Name')?.propValue || ingName;
 
-        if (rxcui) {
-          // Fetch Class / Drug Information
-          let propRes = await fetch(`https://rxnav.nlm.nih.gov/REST/rxcui/${rxcui}/allProperties.json?prop=ALL`);
-          let propData = await propRes.json();
-          
-          let propConcept = propData.propConceptGroup ? propData.propConceptGroup.propConcept : [];
-          let description = propConcept.find(p => p.propName === 'RxNorm Name')?.propValue || ingName;
+        content.innerHTML = `
+          <div class="bg-blue-50 p-4 rounded-xl border border-blue-200 space-y-2">
+            <h4 class="font-bold text-blue-900 border-b border-blue-200 pb-1">🧪 المادة الفعالة والتصنيف الطبي:</h4>
+            <p><b>اسم المادة القياسي:</b> <span class="font-mono text-blue-800 font-bold">${description}</span></p>
+            <p><b>معرف المرجع الطبي (RxCUI):</b> <span class="font-mono font-bold text-slate-700">${rxcui}</span></p>
+          </div>
 
-          content.innerHTML = `
-            <div class="bg-blue-50 p-4 rounded-xl border border-blue-200 space-y-2">
-              <h4 class="font-bold text-blue-900 border-b border-blue-200 pb-1">🧪 المادة الفعالة والتصنيف الطبية:</h4>
-              <p><b>اسم المادة الرقمي:</b> <span class="font-mono text-blue-800">${description}</span></p>
-              <p><b>معرف المرجع الطبي (RxCUI):</b> <span class="font-mono font-bold">${rxcui}</span></p>
-            </div>
+          <div class="bg-amber-50 p-4 rounded-xl border border-amber-200 space-y-2">
+            <h4 class="font-bold text-amber-900 border-b border-amber-200 pb-1">💡 إرشادات الاستخدام والسلامة المعتمدة:</h4>
+            <ul class="list-disc pr-5 space-y-1 text-sm text-amber-950">
+              <li>المادة الفعالة المسجلة تعتبر المرجع الأساسي لتقييم جرعاتك وتعارضاتك الدوائية.</li>
+              <li>تأكد دائماً من تناوله وفق الجدول الزمني المحدد وتجنب مضاعفة الجرعة عند النسيان.</li>
+              <li>في حال استمرار أي عرض جانبي مسجل بأسفل التطبيق، يرجى إطلاع صيدليك أو طبيبك على هذا المعرف الطبي.</li>
+            </ul>
+          </div>
 
-            <div class="bg-amber-50 p-4 rounded-xl border border-amber-200 space-y-2">
-              <h4 class="font-bold text-amber-900 border-b border-amber-200 pb-1">💡 إرشادات الاستخدام والسلامة المعتمدة:</h4>
-              <ul class="list-disc pr-5 space-y-1 text-sm text-amber-950">
-                <li>المادة الفعالة المسجلة تعتبر المرجع الأساسي لتقييم جرعاتك وتعارضاتك الدوائية.</li>
-                <li>تأكد دائماً من تناوله وفق الجدول الزمني المحدد وتجنب مضاعفة الجرعة عند النسيان.</li>
-                <li>في حال استمرار أي عرض جانبي مسجل بأسفل التطبيق، يرجى إطلاع صيدليك أو طبيبك على هذا المعرف الطبي.</li>
-              </ul>
-            </div>
-
-            <div class="text-center pt-2">
-              <a href="https://medlineplus.gov/druginformation.html" target="_blank" class="inline-block bg-blue-100 hover:bg-blue-200 text-blue-900 font-bold px-4 py-2 rounded-lg text-sm border border-blue-300">
-                🌐 البحث الموسع في MedlinePlus المعرفي ↗
-              </a>
-            </div>
-          `;
-        } else {
-          content.innerHTML = `
-            <div class="p-4 bg-slate-100 rounded-xl border text-slate-800 space-y-2">
-              <p><b>المادة الفعالة المدخلة:</b> <span class="font-mono font-bold">${drug.activeIngredient}</span></p>
-              <p class="text-sm text-slate-600">لم يتم العثور على سجل رقمي مباشر بنفس الاسم في قاعدة البيانات العلمية. يُرجى مراجعة الصيدلي للتأكد من الاسم العلمي بالإنجليزية.</p>
-            </div>
-          `;
-        }
-      } catch (err) {
-        content.innerHTML = '<div class="p-4 bg-red-50 text-red-700 rounded-xl font-bold">حدث خطأ أثناء جلب تفاصيل المادة الفعالة أونلاين.</div>';
+          <div class="text-center pt-2">
+            <a href="https://medlineplus.gov/druginformation.html" target="_blank" class="inline-block bg-blue-100 hover:bg-blue-200 text-blue-900 font-bold px-4 py-2 rounded-lg text-sm border border-blue-300">
+              🌐 البحث الموسع في MedlinePlus المعرفي ↗
+            </a>
+          </div>
+        `;
+      } else {
+        content.innerHTML = `
+          <div class="p-4 bg-slate-100 rounded-xl border text-slate-800 space-y-2">
+            <p><b>المادة الفعالة المدخلة:</b> <span class="font-mono font-bold">${drug.activeIngredient}</span></p>
+            <p class="text-sm text-slate-600">لم يتم العثور على سجل رقمي مباشر بنفس الاسم في قاعدة البيانات العلمية. يُرجى مراجعة الصيدلي للتأكد من الاسم العلمي بالإنجليزية.</p>
+          </div>
+        `;
       }
     }
 
@@ -409,7 +420,7 @@
       document.getElementById('infoModal').classList.add('hidden');
     }
 
-    // REAL-TIME INTERACTIONS CHECKER BASED ON ACTIVE INGREDIENTS
+    // REAL-TIME INTERACTIONS CHECKER FIXED
     async function checkInteractionsOnline() {
       const resultsDiv = document.getElementById('interactionResults');
       if (drugs.length < 2) {
@@ -423,65 +434,58 @@
         </div>
       `;
 
-      try {
-        let rxcuis = [];
-        for (let drug of drugs) {
-          let searchName = (drug.activeIngredient || drug.name).trim();
-          let res = await fetch(`https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(searchName)}`);
-          let data = await res.json();
-
-          if (data.idGroup && data.idGroup.rxnormId) {
-            rxcuis.push(data.idGroup.rxnormId[0]);
-          }
+      let rxcuis = [];
+      for (let drug of drugs) {
+        let searchName = (drug.activeIngredient || drug.name).trim();
+        let rxcui = await getRxCUI(searchName);
+        if (rxcui) {
+          rxcuis.push(rxcui);
         }
+      }
 
-        if (rxcuis.length < 2) {
-          resultsDiv.innerHTML = `
-            <div class="p-4 bg-yellow-50 border border-yellow-300 rounded-xl text-yellow-900 text-sm">
-              <b>تنبيه:</b> تعذر المطابقة الرقمية للمواد الفعالة لأكثر من دواء. يرجى التأكد من كتابة المادة الفعالة بالإنجليزية بدقة (مثل Paracetamol أو Warfarin).
-            </div>
-          `;
-          return;
-        }
+      if (rxcuis.length < 2) {
+        resultsDiv.innerHTML = `
+          <div class="p-4 bg-yellow-50 border border-yellow-300 rounded-xl text-yellow-900 text-sm">
+            <b>تنبيه:</b> تعذر المطابقة الرقمية للمواد الفعالة لأكثر من دواء. يرجى التأكد من كتابة المادة الفعالة بالإنجليزية بدقة (مثل Paracetamol أو Warfarin).
+          </div>
+        `;
+        return;
+      }
 
-        let interactionRes = await fetch(`https://rxnav.nlm.nih.gov/REST/interaction/list.json?rxcuis=${rxcuis.join('+')}`);
-        let interactionData = await interactionRes.json();
+      let interactionData = await safeFetch(`https://rxnav.nlm.nih.gov/REST/interaction/list.json?rxcuis=${rxcuis.join('+')}`);
 
-        if (interactionData.fullInteractionTypeGroup) {
-          let messages = [];
+      if (interactionData && interactionData.fullInteractionTypeGroup) {
+        let messages = [];
 
-          interactionData.fullInteractionTypeGroup.forEach(group => {
-            group.fullInteractionType.forEach(type => {
-              type.interactionPair.forEach(pair => {
-                let drug1 = pair.interactionConcept[0].minConceptItem.name;
-                let drug2 = pair.interactionConcept[1].minConceptItem.name;
-                let description = pair.description;
+        interactionData.fullInteractionTypeGroup.forEach(group => {
+          group.fullInteractionType.forEach(type => {
+            type.interactionPair.forEach(pair => {
+              let drug1 = pair.interactionConcept[0].minConceptItem.name;
+              let drug2 = pair.interactionConcept[1].minConceptItem.name;
+              let description = pair.description;
 
-                messages.push(`
-                  <div class="p-3 bg-red-100 border-r-4 border-red-600 rounded-lg text-red-950 space-y-1 text-sm">
-                    <div class="font-extrabold text-base text-red-800">⛔ تعارض بين: ${drug1} ↔️ ${drug2}</div>
-                    <p class="leading-relaxed"><b>التفاصيل:</b> ${description}</p>
-                  </div>
-                `);
-              });
+              messages.push(`
+                <div class="p-3 bg-red-100 border-r-4 border-red-600 rounded-lg text-red-950 space-y-1 text-sm">
+                  <div class="font-extrabold text-base text-red-800">⛔ تعارض بين: ${drug1} ↔️ ${drug2}</div>
+                  <p class="leading-relaxed"><b>التفاصيل:</b> ${description}</p>
+                </div>
+              `);
             });
           });
+        });
 
-          resultsDiv.innerHTML = `
-            <div class="space-y-3">
-              <div class="p-3 bg-red-600 text-white font-bold rounded-xl">🚨 اكتشاف ${messages.length} تداخل(ات) دوائية!</div>
-              ${messages.join('')}
-            </div>
-          `;
-        } else {
-          resultsDiv.innerHTML = `
-            <div class="p-4 bg-emerald-100 border border-emerald-400 text-emerald-950 font-bold rounded-xl flex items-center gap-2">
-              <span>✅</span> لا يوجد تداخلات دوائية مسجلة بين المواد الفعالة التي تم فحصها.
-            </div>
-          `;
-        }
-      } catch (e) {
-        resultsDiv.innerHTML = '<div class="p-3 bg-red-100 text-red-800 font-bold rounded-xl">حدث خطأ أثناء الاتصال بأداة الفحص الطبية.</div>';
+        resultsDiv.innerHTML = `
+          <div class="space-y-3">
+            <div class="p-3 bg-red-600 text-white font-bold rounded-xl">🚨 اكتشاف ${messages.length} تداخل(ات) دوائية!</div>
+            ${messages.join('')}
+          </div>
+        `;
+      } else {
+        resultsDiv.innerHTML = `
+          <div class="p-4 bg-emerald-100 border border-emerald-400 text-emerald-950 font-bold rounded-xl flex items-center gap-2">
+            <span>✅</span> لا يوجد تداخلات دوائية مسجلة بين المواد الفعالة التي تم فحصها.
+          </div>
+        `;
       }
     }
 
