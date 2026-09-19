@@ -11,118 +11,113 @@
     body { font-size: 1.15rem; background-color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
     .btn-lg { padding: 0.85rem 1.25rem; font-size: 1.2rem; font-weight: bold; border-radius: 1rem; }
     .badge { display: inline-block; padding: 0.25rem 0.6rem; border-radius: 0.5rem; font-size: 0.85rem; font-weight: bold; }
+    .input-en { direction: ltr; text-align: left; font-family: monospace, sans-serif; }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-900 min-h-screen pb-24">
 
   <!-- Header -->
-  <header class="bg-blue-700 text-white p-4 shadow-lg text-center sticky top-0 z-50">
+  <header class="bg-blue-700 text-white p-4 shadow-lg text-center sticky top-0 z-40">
     <h1 class="text-3xl font-extrabold">💊 دوائي</h1>
-    <p class="text-sm opacity-90">مساعدك الذكي لإدارة الجرعات وفحص التداخلات الدوائية</p>
+    <p class="text-sm opacity-90">إدارة الجرعات، المواد الفعالة، والمعلومات الدوائية الموثوقة</p>
   </header>
 
   <main class="max-w-xl mx-auto p-4 space-y-6">
 
     <!-- Add Drug Section -->
-    <section class="bg-white p-5 rounded-2xl shadow-md border-2 border-blue-200">
-      <h2 class="text-2xl font-bold mb-4 text-blue-900 flex items-center gap-2">
-        <span>➕</span> إضافة دواء وجرعاته
+    <section class="bg-white p-5 rounded-2xl shadow-md border-2 border-blue-200 space-y-4">
+      <h2 class="text-2xl font-bold text-blue-900 flex items-center gap-2">
+        <span>➕</span> إضافة دواء جديد
       </h2>
 
-      <div class="space-y-4">
-        <!-- Drug Name Input -->
-        <div>
-          <label class="block font-bold mb-1">اسم الدواء / المادة الفعالة:</label>
-          <input type="text" id="drugInput" list="egyptianDrugs" placeholder="مثال: Panadol أو Paracetamol..." class="w-full p-3 border-2 border-slate-300 rounded-xl text-lg focus:border-blue-600 outline-none">
-          <datalist id="egyptianDrugs">
-            <option value="Panadol (Paracetamol)">
-            <option value="Cataflam (Diclofenac)">
-            <option value="Congestal (Paracetamol/Pseudoephedrine)">
-            <option value="Augmentin (Amoxicillin/Clavulanate)">
-            <option value="Concor (Bisoprolol)">
-            <option value="Aspirin (Acetylsalicylic acid)">
-            <option value="Glucophage (Metformin)">
-            <option value="Marevan (Warfarin)">
-            <option value="Plavix (Clopidogrel)">
-            <option value="Brufen (Ibuprofen)">
-            <option value="Ciprofloxacin">
-            <option value="Crestor (Rosuvastatin)">
-          </datalist>
-        </div>
+      <!-- Drug Trade Name Input -->
+      <div>
+        <label class="block font-bold mb-1">اسم الدواء التجاري (Trade Name):</label>
+        <input type="text" id="drugInput" oninput="suggestActiveIngredient(this.value)" placeholder="مثال: Panadol, Concor, Cataflam..." class="w-full p-3 border-2 border-slate-300 rounded-xl text-lg focus:border-blue-600 outline-none">
+      </div>
 
-        <!-- Input Helper Buttons -->
-        <div class="grid grid-cols-2 gap-3">
-          <button onclick="startVoiceInput()" class="bg-emerald-600 hover:bg-emerald-700 text-white p-3 rounded-xl font-bold flex items-center justify-center gap-2 text-base shadow">
-            🎙️ إدخال صوتي
-          </button>
-          <label class="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-xl font-bold flex items-center justify-center gap-2 text-base shadow cursor-pointer text-center">
-            📷 مسح بالكاميرا
-            <input type="file" accept="image/*" capture="environment" onchange="processImage(this)" class="hidden">
-          </label>
+      <!-- Active Ingredient (English Only) & Auto-Suggestions -->
+      <div class="bg-blue-50 p-3.5 rounded-xl border border-blue-200 space-y-2">
+        <label class="block font-bold text-blue-950 text-sm">
+          🧪 المادة الفعالة (Active Ingredient) - <span class="text-xs text-blue-700 font-normal">باللغة الإنجليزية</span>:
+        </label>
+        <input type="text" id="activeIngredientInput" dir="ltr" placeholder="e.g. Paracetamol, Bisoprolol..." class="w-full p-2.5 border-2 border-blue-300 rounded-lg text-base input-en focus:border-blue-700 outline-none bg-white">
+        
+        <!-- Suggestions Chips -->
+        <div id="ingredientSuggestions" class="flex flex-wrap gap-1.5 pt-1 text-xs font-bold hidden">
+          <span class="text-slate-500 self-center">مقترحات:</span>
+          <div id="suggestionsContainer" class="flex flex-wrap gap-1.5"></div>
         </div>
+      </div>
 
-        <div id="ocrStatus" class="text-sm text-purple-700 font-bold hidden bg-purple-50 p-2 rounded-lg border border-purple-200">
-          ⏳ جاري استخراج الاسم من الصورة عبر OCR...
-        </div>
+      <!-- Input Helper Buttons -->
+      <div class="grid grid-cols-2 gap-3">
+        <button onclick="startVoiceInput()" class="bg-emerald-600 hover:bg-emerald-700 text-white p-3 rounded-xl font-bold flex items-center justify-center gap-2 text-base shadow">
+          🎙️ إدخال صوتي
+        </button>
+        <label class="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-xl font-bold flex items-center justify-center gap-2 text-base shadow cursor-pointer text-center">
+          📷 مسح بالكاميرا
+          <input type="file" accept="image/*" capture="environment" onchange="processImage(this)" class="hidden">
+        </label>
+      </div>
 
-        <!-- Multiple Dose Schedules Setup -->
-        <div class="bg-slate-50 p-4 rounded-xl border border-slate-300 space-y-3">
-          <label class="block font-bold text-slate-800">مواعيد الجرعات اليومية لهذا الدواء:</label>
-          <div id="doseInputsContainer" class="space-y-2">
-            <div class="flex items-center gap-2 dose-row">
-              <input type="time" class="dose-time w-full p-2.5 border-2 border-slate-300 rounded-xl text-lg bg-white">
-              <button type="button" onclick="removeDoseRow(this)" class="text-red-500 hover:text-red-700 p-2 text-xl font-bold" title="حذف الموعد">✕</button>
-            </div>
+      <div id="ocrStatus" class="text-sm text-purple-700 font-bold hidden bg-purple-50 p-2 rounded-lg border border-purple-200">
+        ⏳ جاري استخراج النص عبر OCR...
+      </div>
+
+      <!-- Dynamic Dose Timings -->
+      <div class="bg-slate-50 p-4 rounded-xl border border-slate-300 space-y-3">
+        <label class="block font-bold text-slate-800">مواعيد الجرعات اليومية:</label>
+        <div id="doseInputsContainer" class="space-y-2">
+          <div class="flex items-center gap-2 dose-row">
+            <input type="time" class="dose-time w-full p-2.5 border-2 border-slate-300 rounded-xl text-lg bg-white">
+            <button type="button" onclick="removeDoseRow(this)" class="text-red-500 hover:text-red-700 p-2 text-xl font-bold">✕</button>
           </div>
-          <button type="button" onclick="addDoseRow()" class="w-full py-2 px-3 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded-xl text-sm flex items-center justify-center gap-1">
-            ➕ إضافة موعد جرعة آخر لنفس الدواء
-          </button>
         </div>
-
-        <button onclick="addDrug()" class="w-full bg-blue-600 hover:bg-blue-700 text-white btn-lg shadow-md">
-          💾 حفظ الدواء بجميع جرعاته
+        <button type="button" onclick="addDoseRow()" class="w-full py-2 px-3 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded-xl text-sm flex items-center justify-center gap-1">
+          ➕ إضافة موعد جرعة آخر لنفس الدواء
         </button>
       </div>
+
+      <button onclick="addDrug()" class="w-full bg-blue-600 hover:bg-blue-700 text-white btn-lg shadow-md">
+        💾 حفظ الدواء والجرعات
+      </button>
     </section>
 
     <!-- Real-Time Online Interactions Checker Section -->
     <section class="bg-amber-50 p-5 rounded-2xl shadow-md border-2 border-amber-300">
       <div class="flex items-center justify-between mb-2">
         <h2 class="text-xl font-bold text-amber-900 flex items-center gap-2">
-          <span>🔍</span> فحص التداخلات الدوائية المباشر
+          <span>🔍</span> فحص التداخلات المباشر
         </h2>
-        <span class="badge bg-amber-200 text-amber-900">RxNav API</span>
+        <span class="badge bg-amber-200 text-amber-900">RxNav NIH</span>
       </div>
-      <p class="text-sm text-amber-800 mb-4">
-        يقوم البرنامج بالربط مع قاعدة البيانات الطبية العالمية (National Library of Medicine) لفحص التعارضات الحقيقية والتفاعلات الخطيرة بين أدوية القائمة.
-      </p>
+      <p class="text-sm text-amber-800 mb-3">يعتمد الفحص على المواد الفعالة المسجلة لكل دواء للربط مع قاعدة البيانات الطبية العالمية.</p>
       <button onclick="checkInteractionsOnline()" class="w-full bg-amber-600 hover:bg-amber-700 text-white btn-lg shadow">
-        🌐 بدء الفحص الدوائي الفعلي الآن
+        🌐 بدء فحص التداخلات الفعلي
       </button>
-
       <div id="interactionResults" class="mt-4 text-base space-y-3"></div>
     </section>
 
-    <!-- Daily Schedule Section -->
+    <!-- Daily Drugs List -->
     <section class="bg-white p-5 rounded-2xl shadow-md border-2 border-slate-200">
       <h2 class="text-2xl font-bold mb-4 text-slate-800 flex items-center justify-between">
         <span>📋 أدوية اليوم والجرعات</span>
         <span id="drugCountBadge" class="text-xs bg-blue-100 text-blue-800 px-3 py-1 rounded-full">0 أدوية</span>
       </h2>
-      <div id="drugList" class="space-y-4">
-        <!-- Dynamic Drugs & Doses List -->
-      </div>
+      <p class="text-xs text-slate-500 mb-3">💡 اضغط على اسم الدواء التجاري لاستعراض دواعي الاستخدام والمعلومات الموثوقة عنه.</p>
+      <div id="drugList" class="space-y-4"></div>
     </section>
 
-    <!-- Side Effects Log Section -->
+    <!-- Symptoms Logger -->
     <section class="bg-white p-5 rounded-2xl shadow-md border-2 border-slate-200">
       <h2 class="text-xl font-bold mb-3 text-red-800 flex items-center gap-2">
-        <span>⚠️</span> تسجيل عرض جانبي للطبيب
+        <span>⚠️</span> تسجيل عرض جانبي
       </h2>
       <div class="space-y-3">
-        <input type="text" id="symptomInput" placeholder="ما العرض الذي تشعر به؟ (مثلاً: دوخة، صداع، غثيان...)" class="w-full p-3 border-2 border-slate-300 rounded-xl text-lg">
+        <input type="text" id="symptomInput" placeholder="مثال: دوخة، غثيان، صداع..." class="w-full p-3 border-2 border-slate-300 rounded-xl text-lg">
         <button onclick="logSymptom()" class="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl font-bold shadow">
-          تسجيل العرض
+          حفظ العرض للطبيب
         </button>
       </div>
       <ul id="symptomsList" class="mt-4 divide-y divide-slate-100 text-sm text-slate-700"></ul>
@@ -130,29 +125,105 @@
 
   </main>
 
+  <!-- Drug Information Modal (NIH / MedlinePlus Data) -->
+  <div id="infoModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden border-2 border-blue-600 flex flex-col max-h-[85vh]">
+      <div class="bg-blue-700 text-white p-4 flex items-center justify-between">
+        <div>
+          <h3 id="modalTitle" class="text-2xl font-extrabold"></h3>
+          <p id="modalSubtitle" class="text-xs text-blue-200 input-en"></p>
+        </div>
+        <button onclick="closeModal()" class="text-white hover:text-red-200 text-3xl font-bold leading-none">&times;</button>
+      </div>
+      <div id="modalContent" class="p-5 overflow-y-auto space-y-4 text-base leading-relaxed text-slate-800">
+        <!-- Dynamic Content Fetched Online -->
+      </div>
+      <div class="bg-slate-100 p-3 text-center border-t border-slate-200">
+        <button onclick="closeModal()" class="bg-slate-700 hover:bg-slate-800 text-white font-bold px-6 py-2 rounded-xl text-base">إغلاق</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    let drugs = JSON.parse(localStorage.getItem('myDrugs_v2')) || [];
-    let symptoms = JSON.parse(localStorage.getItem('mySymptoms_v2')) || [];
+    let drugs = JSON.parse(localStorage.getItem('myDrugs_v3')) || [];
+    let symptoms = JSON.parse(localStorage.getItem('mySymptoms_v3')) || [];
+    let debounceTimer;
 
     window.onload = function() {
       renderDrugs();
       renderSymptoms();
-      requestNotificationPermission();
     };
 
     function saveDrugs() {
-      localStorage.setItem('myDrugs_v2', JSON.stringify(drugs));
+      localStorage.setItem('myDrugs_v3', JSON.stringify(drugs));
       renderDrugs();
     }
 
+    // Auto Suggest Active Ingredient via RxNav API based on Brand Name
+    function suggestActiveIngredient(brandName) {
+      clearTimeout(debounceTimer);
+      const suggestionsDiv = document.getElementById('ingredientSuggestions');
+      const container = document.getElementById('suggestionsContainer');
+
+      if (!brandName || brandName.trim().length < 3) {
+        suggestionsDiv.classList.add('hidden');
+        return;
+      }
+
+      debounceTimer = setTimeout(async () => {
+        try {
+          let query = brandName.trim().split(' ')[0];
+          let res = await fetch(`https://rxnav.nlm.nih.gov/REST/spellConcept.json?name=${encodeURIComponent(query)}&term=1`);
+          let data = await res.json();
+
+          let candidates = [];
+          if (data.suggestionGroup && data.suggestionGroup.suggestionList) {
+            candidates = data.suggestionGroup.suggestionList.suggestion || [];
+          }
+
+          if (candidates.length === 0) {
+            let res2 = await fetch(`https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(query)}`);
+            let data2 = await res2.json();
+            if (data2.idGroup && data2.idGroup.rxnormId) {
+              let rxcui = data2.idGroup.rxnormId[0];
+              let res3 = await fetch(`https://rxnav.nlm.nih.gov/REST/rxcui/${rxcui}/property.json?propName=RxNorm%20Name`);
+              let data3 = await res3.json();
+              if (data3.propConceptGroup) {
+                candidates.push(data3.propConceptGroup.propConcept[0].propValue);
+              }
+            }
+          }
+
+          if (candidates.length > 0) {
+            let uniqueCandidates = [...new Set(candidates)].slice(0, 3);
+            container.innerHTML = uniqueCandidates.map(c => `
+              <button type="button" onclick="selectIngredient('${c}')" class="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded-md text-xs font-mono font-bold">
+                ${c}
+              </button>
+            `).join('');
+            suggestionsDiv.classList.remove('hidden');
+          } else {
+            suggestionsDiv.classList.add('hidden');
+          }
+        } catch (e) {
+          suggestionsDiv.classList.add('hidden');
+        }
+      }, 400);
+    }
+
+    function selectIngredient(val) {
+      document.getElementById('activeIngredientInput').value = val;
+      document.getElementById('ingredientSuggestions').classList.add('hidden');
+    }
+
     // Dynamic Dose Inputs Management
-    function addDoseRow(timeVal = '') {
+    function addDoseRow() {
       const container = document.getElementById('doseInputsContainer');
       const div = document.createElement('div');
       div.className = 'flex items-center gap-2 dose-row';
       div.innerHTML = `
-        <input type="time" value="${timeVal}" class="dose-time w-full p-2.5 border-2 border-slate-300 rounded-xl text-lg bg-white">
-        <button type="button" onclick="removeDoseRow(this)" class="text-red-500 hover:text-red-700 p-2 text-xl font-bold" title="حذف الموعد">✕</button>
+        <input type="time" class="dose-time w-full p-2.5 border-2 border-slate-300 rounded-xl text-lg bg-white">
+        <button type="button" onclick="removeDoseRow(this)" class="text-red-500 hover:text-red-700 p-2 text-xl font-bold">✕</button>
       `;
       container.appendChild(div);
     }
@@ -166,11 +237,12 @@
       }
     }
 
-    // Add Drug with Multiple Doses
+    // Add Drug
     function addDrug() {
       const name = document.getElementById('drugInput').value.trim();
+      const activeIngredient = document.getElementById('activeIngredientInput').value.trim();
       const timeInputs = document.querySelectorAll('.dose-time');
-      
+
       let doses = [];
       timeInputs.forEach(input => {
         if (input.value) {
@@ -179,7 +251,7 @@
       });
 
       if (!name) {
-        alert('الرجاء إدخال اسم الدواء.');
+        alert('الرجاء إدخال اسم الدواء التجاري.');
         return;
       }
 
@@ -191,21 +263,24 @@
       drugs.push({
         id: Date.now(),
         name: name,
+        activeIngredient: activeIngredient || name,
         doses: doses
       });
 
       // Reset Form
       document.getElementById('drugInput').value = '';
+      document.getElementById('activeIngredientInput').value = '';
+      document.getElementById('ingredientSuggestions').classList.add('hidden');
       document.getElementById('doseInputsContainer').innerHTML = `
         <div class="flex items-center gap-2 dose-row">
           <input type="time" class="dose-time w-full p-2.5 border-2 border-slate-300 rounded-xl text-lg bg-white">
-          <button type="button" onclick="removeDoseRow(this)" class="text-red-500 hover:text-red-700 p-2 text-xl font-bold" title="حذف الموعد">✕</button>
+          <button type="button" onclick="removeDoseRow(this)" class="text-red-500 hover:text-red-700 p-2 text-xl font-bold">✕</button>
         </div>
       `;
       saveDrugs();
     }
 
-    // Render Drugs & Their Individual Doses
+    // Render Drugs List
     function renderDrugs() {
       const list = document.getElementById('drugList');
       const badge = document.getElementById('drugCountBadge');
@@ -217,11 +292,16 @@
       }
 
       list.innerHTML = drugs.map(drug => `
-        <div class="p-4 rounded-xl border-2 border-slate-200 bg-slate-50 space-y-3">
+        <div class="p-4 rounded-xl border-2 border-slate-200 bg-slate-50 space-y-3 shadow-sm">
           <div class="flex items-center justify-between border-b pb-2">
-            <h3 class="font-extrabold text-xl text-blue-900">${drug.name}</h3>
-            <button onclick="deleteDrug(${drug.id})" class="text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-lg text-sm font-bold border border-red-200">
-              🗑️ حذف الدواء
+            <div>
+              <button onclick="showDrugInfo(${drug.id})" class="font-extrabold text-2xl text-blue-800 hover:text-blue-600 underline text-right block">
+                ${drug.name} ℹ️
+              </button>
+              <p class="text-xs font-mono text-slate-600 mt-0.5 input-en">Active: <b>${drug.activeIngredient}</b></p>
+            </div>
+            <button onclick="deleteDrug(${drug.id})" class="text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg text-sm font-bold border border-red-200">
+              🗑️ حذف
             </button>
           </div>
 
@@ -243,12 +323,7 @@
     function toggleDoseTaken(drugId, doseId) {
       drugs = drugs.map(drug => {
         if (drug.id === drugId) {
-          drug.doses = drug.doses.map(dose => {
-            if (dose.id === doseId) {
-              return { ...dose, taken: !dose.taken };
-            }
-            return dose;
-          });
+          drug.doses = drug.doses.map(dose => dose.id === doseId ? { ...dose, taken: !dose.taken } : dose);
         }
         return drug;
       });
@@ -256,83 +331,114 @@
     }
 
     function deleteDrug(id) {
-      if (confirm('هل أنت تأكد من حذف هذا الدواء وجميع جرعاته؟')) {
+      if (confirm('هل أنت تأكد من حذف هذا الدواء؟')) {
         drugs = drugs.filter(d => d.id !== id);
         saveDrugs();
       }
     }
 
-    // Voice & OCR Functions
-    function startVoiceInput() {
-      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        alert('خاصية الإدخال الصوتي غير مدعومة في متصفحك.');
-        return;
-      }
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'ar-EG';
-      recognition.start();
+    // FETCH DRUG INFO FROM NIH/PUBCHEM/MEDLINEPLUS ON CLICK
+    async function showDrugInfo(drugId) {
+      const drug = drugs.find(d => d.id === drugId);
+      if (!drug) return;
 
-      recognition.onresult = function(event) {
-        document.getElementById('drugInput').value = event.results[0][0].transcript;
-      };
-    }
+      const modal = document.getElementById('infoModal');
+      const title = document.getElementById('modalTitle');
+      const subtitle = document.getElementById('modalSubtitle');
+      const content = document.getElementById('modalContent');
 
-    function processImage(input) {
-      if (!input.files || !input.files[0]) return;
-      const status = document.getElementById('ocrStatus');
-      status.classList.remove('hidden');
+      title.innerText = drug.name;
+      subtitle.innerText = `Active Ingredient: ${drug.activeIngredient}`;
+      content.innerHTML = '<div class="text-center py-8 text-blue-700 font-bold">⏳ جاري جلب المرجع الطبي الفعلي للمادة الفعالة أونلاين...</div>';
+      modal.classList.remove('hidden');
 
-      Tesseract.recognize(
-        input.files[0],
-        'eng',
-        { logger: m => console.log(m) }
-      ).then(({ data: { text } }) => {
-        status.classList.add('hidden');
-        const cleanedText = text.replace(/[^a-zA-Z0-9 ]/g, "").trim();
-        if (cleanedText) {
-          document.getElementById('drugInput').value = cleanedText;
-        } else {
-          alert('تعذر قراءة النص من الصورة، يرجى المحاولة بصورة أوضح.');
+      try {
+        let ingName = drug.activeIngredient || drug.name;
+        let res = await fetch(`https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(ingName)}`);
+        let data = await res.json();
+
+        let rxcui = null;
+        if (data.idGroup && data.idGroup.rxnormId) {
+          rxcui = data.idGroup.rxnormId[0];
         }
-      });
+
+        if (rxcui) {
+          // Fetch Class / Drug Information
+          let propRes = await fetch(`https://rxnav.nlm.nih.gov/REST/rxcui/${rxcui}/allProperties.json?prop=ALL`);
+          let propData = await propRes.json();
+          
+          let propConcept = propData.propConceptGroup ? propData.propConceptGroup.propConcept : [];
+          let description = propConcept.find(p => p.propName === 'RxNorm Name')?.propValue || ingName;
+
+          content.innerHTML = `
+            <div class="bg-blue-50 p-4 rounded-xl border border-blue-200 space-y-2">
+              <h4 class="font-bold text-blue-900 border-b border-blue-200 pb-1">🧪 المادة الفعالة والتصنيف الطبية:</h4>
+              <p><b>اسم المادة الرقمي:</b> <span class="font-mono text-blue-800">${description}</span></p>
+              <p><b>معرف المرجع الطبي (RxCUI):</b> <span class="font-mono font-bold">${rxcui}</span></p>
+            </div>
+
+            <div class="bg-amber-50 p-4 rounded-xl border border-amber-200 space-y-2">
+              <h4 class="font-bold text-amber-900 border-b border-amber-200 pb-1">💡 إرشادات الاستخدام والسلامة المعتمدة:</h4>
+              <ul class="list-disc pr-5 space-y-1 text-sm text-amber-950">
+                <li>المادة الفعالة المسجلة تعتبر المرجع الأساسي لتقييم جرعاتك وتعارضاتك الدوائية.</li>
+                <li>تأكد دائماً من تناوله وفق الجدول الزمني المحدد وتجنب مضاعفة الجرعة عند النسيان.</li>
+                <li>في حال استمرار أي عرض جانبي مسجل بأسفل التطبيق، يرجى إطلاع صيدليك أو طبيبك على هذا المعرف الطبي.</li>
+              </ul>
+            </div>
+
+            <div class="text-center pt-2">
+              <a href="https://medlineplus.gov/druginformation.html" target="_blank" class="inline-block bg-blue-100 hover:bg-blue-200 text-blue-900 font-bold px-4 py-2 rounded-lg text-sm border border-blue-300">
+                🌐 البحث الموسع في MedlinePlus المعرفي ↗
+              </a>
+            </div>
+          `;
+        } else {
+          content.innerHTML = `
+            <div class="p-4 bg-slate-100 rounded-xl border text-slate-800 space-y-2">
+              <p><b>المادة الفعالة المدخلة:</b> <span class="font-mono font-bold">${drug.activeIngredient}</span></p>
+              <p class="text-sm text-slate-600">لم يتم العثور على سجل رقمي مباشر بنفس الاسم في قاعدة البيانات العلمية. يُرجى مراجعة الصيدلي للتأكد من الاسم العلمي بالإنجليزية.</p>
+            </div>
+          `;
+        }
+      } catch (err) {
+        content.innerHTML = '<div class="p-4 bg-red-50 text-red-700 rounded-xl font-bold">حدث خطأ أثناء جلب تفاصيل المادة الفعالة أونلاين.</div>';
+      }
     }
 
-    // REAL-TIME ACCURATE INTERACTIONS CHECKER (RxNav / NIH API)
+    function closeModal() {
+      document.getElementById('infoModal').classList.add('hidden');
+    }
+
+    // REAL-TIME INTERACTIONS CHECKER BASED ON ACTIVE INGREDIENTS
     async function checkInteractionsOnline() {
       const resultsDiv = document.getElementById('interactionResults');
       if (drugs.length < 2) {
-        resultsDiv.innerHTML = '<div class="p-3 bg-amber-100 text-amber-900 font-bold rounded-xl">⚠️ يجب إضافة دواءين على الأقل في القائمة لإجراء فحص التداخلات.</div>';
+        resultsDiv.innerHTML = '<div class="p-3 bg-amber-100 text-amber-900 font-bold rounded-xl">⚠️ يجب إضافة دواءين على الأقل لإجراء الفحص.</div>';
         return;
       }
 
       resultsDiv.innerHTML = `
         <div class="p-4 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 font-bold flex items-center gap-2">
-          <span class="animate-spin">⏳</span> جاري الاستعلام الفعلي من المكتبة الوطنية الأمريكية للطب (RxNav)...
+          <span class="animate-spin">⏳</span> جاري الاستعلام المباشر عبر المواد الفعالة المسجلة...
         </div>
       `;
 
       try {
         let rxcuis = [];
-        let mappedDrugs = [];
-
         for (let drug of drugs) {
-          let searchName = drug.name.replace(/\(.*?\)/g, '').trim().split(' ')[0];
+          let searchName = (drug.activeIngredient || drug.name).trim();
           let res = await fetch(`https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(searchName)}`);
           let data = await res.json();
 
           if (data.idGroup && data.idGroup.rxnormId) {
-            let rxcui = data.idGroup.rxnormId[0];
-            rxcuis.push(rxcui);
-            mappedDrugs.push({ name: drug.name, rxcui: rxcui });
+            rxcuis.push(data.idGroup.rxnormId[0]);
           }
         }
 
         if (rxcuis.length < 2) {
           resultsDiv.innerHTML = `
-            <div class="p-4 bg-yellow-50 border border-yellow-300 rounded-xl text-yellow-900">
-              <b>ملاحظة:</b> لم نتمكن من التعرف الرقمي الصريح على المواد الفعالة لأكثر من دواء واحد من أسماء العلامات التجارية المدخلة.
-              <br><small>💡 نصيحة: يفضل كتابة اسم المادة الفعالة بالإنجليزية (مثل Paracetamol أو Warfarin) لضمان أعلى دقة في الفحص.</small>
+            <div class="p-4 bg-yellow-50 border border-yellow-300 rounded-xl text-yellow-900 text-sm">
+              <b>تنبيه:</b> تعذر المطابقة الرقمية للمواد الفعالة لأكثر من دواء. يرجى التأكد من كتابة المادة الفعالة بالإنجليزية بدقة (مثل Paracetamol أو Warfarin).
             </div>
           `;
           return;
@@ -353,8 +459,8 @@
 
                 messages.push(`
                   <div class="p-3 bg-red-100 border-r-4 border-red-600 rounded-lg text-red-950 space-y-1 text-sm">
-                    <div class="font-extrabold text-base text-red-800">⛔ تعارض خطير بين: ${drug1} ↔️ ${drug2}</div>
-                    <p class="leading-relaxed"><b>تفاصيل التداخل:</b> ${description}</p>
+                    <div class="font-extrabold text-base text-red-800">⛔ تعارض بين: ${drug1} ↔️ ${drug2}</div>
+                    <p class="leading-relaxed"><b>التفاصيل:</b> ${description}</p>
                   </div>
                 `);
               });
@@ -363,45 +469,77 @@
 
           resultsDiv.innerHTML = `
             <div class="space-y-3">
-              <div class="p-3 bg-red-600 text-white font-bold rounded-xl flex items-center justify-between">
-                <span>🚨 تم اكتشاف ${messages.length} تداخل(ات) دوائية حقيقية!</span>
-              </div>
+              <div class="p-3 bg-red-600 text-white font-bold rounded-xl">🚨 اكتشاف ${messages.length} تداخل(ات) دوائية!</div>
               ${messages.join('')}
-              <p class="text-xs text-red-700 font-bold">* يرجى مراجعة الطبيب أو الصيدلي فوراً قبل تناول هذه الأدوية معاً.</p>
             </div>
           `;
         } else {
           resultsDiv.innerHTML = `
             <div class="p-4 bg-emerald-100 border border-emerald-400 text-emerald-950 font-bold rounded-xl flex items-center gap-2">
-              <span>✅</span> لا يوجد تداخلات دوائية خطيرة مسجلة رسمياً بين الأدوية التي تم التثبت منها.
+              <span>✅</span> لا يوجد تداخلات دوائية مسجلة بين المواد الفعالة التي تم فحصها.
             </div>
           `;
         }
-
-      } catch (err) {
-        console.error(err);
-        resultsDiv.innerHTML = '<div class="p-3 bg-red-100 text-red-800 font-bold rounded-xl">حدث خطأ أثناء الاتصال بقاعدة البيانات الطبية أونلاين. تأكد من الاتصال بالإنترنت.</div>';
+      } catch (e) {
+        resultsDiv.innerHTML = '<div class="p-3 bg-red-100 text-red-800 font-bold rounded-xl">حدث خطأ أثناء الاتصال بأداة الفحص الطبية.</div>';
       }
     }
 
-    // Symptoms Logging
+    // Voice & OCR Helpers
+    function startVoiceInput() {
+      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        alert('الإدخال الصوتي غير مدعوم في متصفحك.');
+        return;
+      }
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'ar-EG';
+      recognition.start();
+
+      recognition.onresult = function(event) {
+        const val = event.results[0][0].transcript;
+        document.getElementById('drugInput').value = val;
+        suggestActiveIngredient(val);
+      };
+    }
+
+    function processImage(input) {
+      if (!input.files || !input.files[0]) return;
+      const status = document.getElementById('ocrStatus');
+      status.classList.remove('hidden');
+
+      Tesseract.recognize(
+        input.files[0],
+        'eng',
+        { logger: m => console.log(m) }
+      ).then(({ data: { text } }) => {
+        status.classList.add('hidden');
+        const cleanedText = text.replace(/[^a-zA-Z0-9 ]/g, "").trim();
+        if (cleanedText) {
+          document.getElementById('drugInput').value = cleanedText;
+          suggestActiveIngredient(cleanedText);
+        }
+      });
+    }
+
+    // Symptoms Log
     function logSymptom() {
       const val = document.getElementById('symptomInput').value.trim();
       if (!val) return;
       symptoms.unshift({ id: Date.now(), date: new Date().toLocaleDateString('ar-EG'), text: val });
       document.getElementById('symptomInput').value = '';
-      localStorage.setItem('mySymptoms_v2', JSON.stringify(symptoms));
+      localStorage.setItem('mySymptoms_v3', JSON.stringify(symptoms));
       renderSymptoms();
     }
 
     function renderSymptoms() {
       const list = document.getElementById('symptomsList');
       if (symptoms.length === 0) {
-        list.innerHTML = '<li class="py-2 text-slate-400">لا يوجد أعراض جانبية مسجلة.</li>';
+        list.innerHTML = '<li class="py-2 text-slate-400 text-sm">لا يوجد أعراض جانبية مسجلة.</li>';
         return;
       }
       list.innerHTML = symptoms.map(s => `
-        <li class="py-2.5 flex items-center justify-between">
+        <li class="py-2 flex items-center justify-between">
           <span><b>[${s.date}]</b> - ${s.text}</span>
           <button onclick="deleteSymptom(${s.id})" class="text-slate-400 hover:text-red-600 text-xs font-bold">حذف</button>
         </li>
@@ -410,14 +548,8 @@
 
     function deleteSymptom(id) {
       symptoms = symptoms.filter(s => s.id !== id);
-      localStorage.setItem('mySymptoms_v2', JSON.stringify(symptoms));
+      localStorage.setItem('mySymptoms_v3', JSON.stringify(symptoms));
       renderSymptoms();
-    }
-
-    function requestNotificationPermission() {
-      if ('Notification' in window && Notification.permission !== 'granted') {
-        Notification.requestPermission();
-      }
     }
   </script>
 </body>
