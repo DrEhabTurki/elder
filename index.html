@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>دوائي - مساعد كبار السن للأدوية</title>
+  <title>دواائي - مساعد كبار السن للأدوية</title>
   <link rel="manifest" href="manifest.json">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
@@ -18,7 +18,7 @@
 
   <!-- Header -->
   <header class="bg-blue-700 text-white p-4 shadow-lg text-center sticky top-0 z-40">
-    <h1 class="text-3xl font-extrabold">💊 دوائي</h1>
+    <h1 class="text-3xl font-extrabold">💊 دواائي</h1>
     <p class="text-sm opacity-90">إدارة الجرعات، المواد الفعالة، والمعلومات الدوائية الموثوقة</p>
   </header>
 
@@ -90,9 +90,9 @@
         <h2 class="text-xl font-bold text-amber-900 flex items-center gap-2">
           <span>🔍</span> فحص التداخلات المباشر
         </h2>
-        <span class="badge bg-amber-200 text-amber-900">RxNav NIH</span>
+        <span class="badge bg-amber-200 text-amber-900">مزدوج (محلي + أونلاين)</span>
       </div>
-      <p class="text-sm text-amber-800 mb-3">يعتمد الفحص على المواد الفعالة المسجلة لكل دواء للربط مع قاعدة البيانات الطبية العالمية.</p>
+      <p class="text-sm text-amber-800 mb-3">يعتمد الفحص على المواد الفعالة المسجلة لكل دواء للربط مع قواعد البيانات السريرية والعالمية.</p>
       <button onclick="checkInteractionsOnline()" class="w-full bg-amber-600 hover:bg-amber-700 text-white btn-lg shadow">
         🌐 بدء فحص التداخلات الفعلي
       </button>
@@ -112,7 +112,7 @@
     <!-- Symptoms Logger -->
     <section class="bg-white p-5 rounded-2xl shadow-md border-2 border-slate-200">
       <h2 class="text-xl font-bold mb-3 text-red-800 flex items-center gap-2">
-        <span>⚠️</span> تسجيل عرض جانبى
+        <span>⚠️</span> تسجيل عرض جانبي
       </h2>
       <div class="space-y-3">
         <input type="text" id="symptomInput" placeholder="مثال: دوخة، غثيان، صداع..." class="w-full p-3 border-2 border-slate-300 rounded-xl text-lg">
@@ -149,6 +149,35 @@
 
     const PROXY = "https://corsproxy.io/?";
 
+    // 1. قاعدة بيانات محلية للتعارضات السريرية الحرجة
+    const LOCAL_INTERACTIONS = [
+      {
+        ingredients: ["warfarin", "aspirin"],
+        severity: "خطير جداً (High Risk)",
+        description: "زيادة شديدة في خطر النزيف بسبب التآزر في تثبيط التخثر وتجميع الصفائح الدموية."
+      },
+      {
+        ingredients: ["warfarin", "ibuprofen"],
+        severity: "خطير جداً (High Risk)",
+        description: "تفاعل مضاعف يزيد من مخاطر نزيف الجهاز الهضمي وتثبيط وظائف الصفائح."
+      },
+      {
+        ingredients: ["sildenafil", "nitroglycerin"],
+        severity: "حرج (Contraindicated)",
+        description: "هبوط حاد ومفاجئ في ضغط الدم قد يؤدي إلى صدمة وعائية."
+      },
+      {
+        ingredients: ["clopidogrel", "omeprazole"],
+        severity: "متوسط إلى عالٍ",
+        description: "تثبيط إنزيم CYP2C19 مما يقلل تحول الكلوبيدوجريل إلى صورته النشطة ويقلل فاعليته."
+      },
+      {
+        ingredients: ["ace inhibitors", "spironolactone"],
+        severity: "مرتفع",
+        description: "خطر حدوث فرط بوتاسيوم الدم (Hyperkalemia) الشديد."
+      }
+    ];
+
     window.onload = function() {
       renderDrugs();
       renderSymptoms();
@@ -159,7 +188,7 @@
       renderDrugs();
     }
 
-    // Fetch helper with fallback proxy
+    // Network Helpers
     async function safeFetch(url) {
       try {
         let res = await fetch(url);
@@ -174,7 +203,6 @@
       return null;
     }
 
-    // Get RxCUI helper
     async function getRxCUI(term) {
       if (!term) return null;
       let cleanTerm = term.trim().split(' ')[0];
@@ -420,203 +448,109 @@
       document.getElementById('infoModal').classList.add('hidden');
     }
 
-    // REAL-TIME INTERACTIONS CHECKER FIXED
+    // CHECK INTERACTIONS (LOCAL + ONLINE)
     async function checkInteractionsOnline() {
-      // 1. إضافة قاعدة بيانات محلية للتعارضات الشائعة لضمان عدم تفويتها
-const LOCAL_INTERACTIONS = [
-  {
-    ingredients: ["warfarin", "aspirin"],
-    severity: "خطير جداً (High Risk)",
-    description: "زيادة شديدة في خطر النزيف بسبب التآزر في تثبيط التخثر وتجميع الصفائح الدموية."
-  },
-  {
-    ingredients: ["warfarin", "ibuprofen"],
-    severity: "خطير جداً (High Risk)",
-    description: "تفاعل مضاعف يزيد من مخاطر نزيف الجهاز الهضمي وتثبيط وظائف الصفائح."
-  },
-  {
-    ingredients: ["sildenafil", "nitroglycerin"],
-    severity: "حرج (Contraindicated)",
-    description: "هبوط حاد ومفاجئ في ضغط الدم قد يؤدي إلى صدمة وعائية."
-  },
-  {
-    ingredients: ["clopidogrel", "omeprazole"],
-    severity: "متوسط إلى عالٍ",
-    description: "تثبيط إنزيم CYP2C19 مما يقلل تحول الكلوبيدوجريل إلى صورته النشطة ويقلل فاعليته."
-  },
-  {
-    ingredients: ["ace inhibitors", "spironolactone"],
-    severity: "مرتفع",
-    description: "خطر حدوث فرط بوتاسيوم الدم (Hyperkalemia) الشديد."
-  }
-];
-
-// 2. دالة الفحص المحدثة
-async function checkInteractionsOnline() {
-  const resultsDiv = document.getElementById('interactionResults');
-  if (drugs.length < 2) {
-    resultsDiv.innerHTML = '<div class="p-3 bg-amber-100 text-amber-900 font-bold rounded-xl">⚠️ يجب إضافة دواءين على الأقل لإجراء الفحص.</div>';
-    return;
-  }
-
-  resultsDiv.innerHTML = `
-    <div class="p-4 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 font-bold flex items-center gap-2">
-      <span class="animate-spin">⏳</span> جاري فحص التداخلات عبر المراجع المحلية وقواعد البيانات العالمية...
-    </div>
-  `;
-
-  let foundInteractions = [];
-
-  // أ) الفحص المحلي أولاً (Local Check)
-  for (let i = 0; i < drugs.length; i++) {
-    for (let j = i + 1; j < drugs.length; j++) {
-      let ing1 = (drugs[i].activeIngredient || drugs[i].name).toLowerCase().trim();
-      let ing2 = (drugs[j].activeIngredient || drugs[j].name).toLowerCase().trim();
-
-      LOCAL_INTERACTIONS.forEach(rule => {
-        let match1 = rule.ingredients.some(ing => ing1.includes(ing));
-        let match2 = rule.ingredients.some(ing => ing2.includes(ing));
-
-        if (match1 && match2) {
-          foundInteractions.push({
-            drug1: drugs[i].name + ` (${drugs[i].activeIngredient})`,
-            drug2: drugs[j].name + ` (${drugs[j].activeIngredient})`,
-            severity: rule.severity,
-            description: rule.description,
-            source: "المكتبة الإكلينيكية المدمجة"
-          });
-        }
-      });
-    }
-  }
-
-  // ب) الفحص الأونلاين عبر API كخط إضافي
-  try {
-    let rxcuis = [];
-    for (let drug of drugs) {
-      let searchName = (drug.activeIngredient || drug.name).trim();
-      let rxcui = await getRxCUI(searchName);
-      if (rxcui) rxcuis.push(rxcui);
-    }
-
-    if (rxcuis.length >= 2) {
-      let interactionData = await safeFetch(`https://rxnav.nlm.nih.gov/REST/interaction/list.json?rxcuis=${rxcuis.join('+')}`);
-
-      if (interactionData && interactionData.fullInteractionTypeGroup) {
-        interactionData.fullInteractionTypeGroup.forEach(group => {
-          group.fullInteractionType.forEach(type => {
-            type.interactionPair.forEach(pair => {
-              let d1 = pair.interactionConcept[0].minConceptItem.name;
-              let d2 = pair.interactionConcept[1].minConceptItem.name;
-              
-              let isDuplicate = foundInteractions.some(item => 
-                (item.drug1.toLowerCase().includes(d1.toLowerCase()) && item.drug2.toLowerCase().includes(d2.toLowerCase())) ||
-                (item.drug1.toLowerCase().includes(d2.toLowerCase()) && item.drug2.toLowerCase().includes(d1.toLowerCase()))
-              );
-
-              if (!isDuplicate) {
-                foundInteractions.push({
-                  drug1: d1,
-                  drug2: d2,
-                  severity: "ملاحظة طبية معتمدة",
-                  description: pair.description,
-                  source: "RxNav / NIH API"
-                });
-              }
-            });
-          });
-        });
-      }
-    }
-  } catch (e) {
-    console.error("Online API Check Error:", e);
-  }
-
-  // ج) عرض النتائج
-  if (foundInteractions.length > 0) {
-    let html = foundInteractions.map(item => `
-      <div class="p-3.5 bg-red-100 border-r-4 border-red-600 rounded-lg text-red-950 space-y-1 text-sm">
-        <div class="font-extrabold text-base text-red-800 flex items-center justify-between">
-          <span>⛔ تعارض بين: ${item.drug1} ↔️ ${item.drug2}</span>
-          <span class="text-xs bg-red-200 text-red-900 px-2 py-0.5 rounded">${item.source}</span>
-        </div>
-        <p class="leading-relaxed"><b>التفاصيل:</b> ${item.description}</p>
-      </div>
-    `).join('');
-
-    resultsDiv.innerHTML = `
-      <div class="space-y-3">
-        <div class="p-3 bg-red-600 text-white font-bold rounded-xl">🚨 تم اكتشاف ${foundInteractions.length} تداخل(ات) دوائية!</div>
-        ${html}
-      </div>
-    `;
-  } else {
-    resultsDiv.innerHTML = `
-      <div class="p-4 bg-emerald-100 border border-emerald-400 text-emerald-950 font-bold rounded-xl flex items-center gap-2">
-        <span>✅</span> لم يتم العثور على تعارضات مسجلة بين المواد الفعالة في قاعدة البيانات الحالية.
-      </div>
-    `;
-  }
-}
-
+      const resultsDiv = document.getElementById('interactionResults');
+      if (drugs.length < 2) {
+        resultsDiv.innerHTML = '<div class="p-3 bg-amber-100 text-amber-900 font-bold rounded-xl">⚠️ يجب إضافة دواءين على الأقل لإجراء الفحص.</div>';
+        return;
       }
 
       resultsDiv.innerHTML = `
         <div class="p-4 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 font-bold flex items-center gap-2">
-          <span class="animate-spin">⏳</span> جاري الاستعلام المباشر عبر المواد الفعالة المسجلة...
+          <span class="animate-spin">⏳</span> جاري فحص التداخلات عبر المراجع المحلية وقواعد البيانات العالمية...
         </div>
       `;
 
-      let rxcuis = [];
-      for (let drug of drugs) {
-        let searchName = (drug.activeIngredient || drug.name).trim();
-        let rxcui = await getRxCUI(searchName);
-        if (rxcui) {
-          rxcuis.push(rxcui);
+      let foundInteractions = [];
+
+      // A) LOCAL CHECK FIRST
+      for (let i = 0; i < drugs.length; i++) {
+        for (let j = i + 1; j < drugs.length; j++) {
+          let ing1 = (drugs[i].activeIngredient || drugs[i].name).toLowerCase().trim();
+          let ing2 = (drugs[j].activeIngredient || drugs[j].name).toLowerCase().trim();
+
+          LOCAL_INTERACTIONS.forEach(rule => {
+            let match1 = rule.ingredients.some(ing => ing1.includes(ing));
+            let match2 = rule.ingredients.some(ing => ing2.includes(ing));
+
+            if (match1 && match2) {
+              foundInteractions.push({
+                drug1: drugs[i].name + ` (${drugs[i].activeIngredient})`,
+                drug2: drugs[j].name + ` (${drugs[j].activeIngredient})`,
+                severity: rule.severity,
+                description: rule.description,
+                source: "المكتبة الإكلينيكية المدمجة"
+              });
+            }
+          });
         }
       }
 
-      if (rxcuis.length < 2) {
-        resultsDiv.innerHTML = `
-          <div class="p-4 bg-yellow-50 border border-yellow-300 rounded-xl text-yellow-900 text-sm">
-            <b>تنبيه:</b> تعذر المطابقة الرقمية للمواد الفعالة لأكثر من دواء. يرجى التأكد من كتابة المادة الفعالة بالإنجليزية بدقة (مثل Paracetamol أو Warfarin).
-          </div>
-        `;
-        return;
+      // B) ONLINE CHECK VIA RXNAV
+      try {
+        let rxcuis = [];
+        for (let drug of drugs) {
+          let searchName = (drug.activeIngredient || drug.name).trim();
+          let rxcui = await getRxCUI(searchName);
+          if (rxcui) rxcuis.push(rxcui);
+        }
+
+        if (rxcuis.length >= 2) {
+          let interactionData = await safeFetch(`https://rxnav.nlm.nih.gov/REST/interaction/list.json?rxcuis=${rxcuis.join('+')}`);
+
+          if (interactionData && interactionData.fullInteractionTypeGroup) {
+            interactionData.fullInteractionTypeGroup.forEach(group => {
+              group.fullInteractionType.forEach(type => {
+                type.interactionPair.forEach(pair => {
+                  let d1 = pair.interactionConcept[0].minConceptItem.name;
+                  let d2 = pair.interactionConcept[1].minConceptItem.name;
+                  
+                  let isDuplicate = foundInteractions.some(item => 
+                    (item.drug1.toLowerCase().includes(d1.toLowerCase()) && item.drug2.toLowerCase().includes(d2.toLowerCase())) ||
+                    (item.drug1.toLowerCase().includes(d2.toLowerCase()) && item.drug2.toLowerCase().includes(d1.toLowerCase()))
+                  );
+
+                  if (!isDuplicate) {
+                    foundInteractions.push({
+                      drug1: d1,
+                      drug2: d2,
+                      severity: "ملاحظة طبية معتمدة",
+                      description: pair.description,
+                      source: "RxNav / NIH API"
+                    });
+                  }
+                });
+              });
+            });
+          }
+        }
+      } catch (e) {
+        console.error("Online API Check Error:", e);
       }
 
-      let interactionData = await safeFetch(`https://rxnav.nlm.nih.gov/REST/interaction/list.json?rxcuis=${rxcuis.join('+')}`);
-
-      if (interactionData && interactionData.fullInteractionTypeGroup) {
-        let messages = [];
-
-        interactionData.fullInteractionTypeGroup.forEach(group => {
-          group.fullInteractionType.forEach(type => {
-            type.interactionPair.forEach(pair => {
-              let drug1 = pair.interactionConcept[0].minConceptItem.name;
-              let drug2 = pair.interactionConcept[1].minConceptItem.name;
-              let description = pair.description;
-
-              messages.push(`
-                <div class="p-3 bg-red-100 border-r-4 border-red-600 rounded-lg text-red-950 space-y-1 text-sm">
-                  <div class="font-extrabold text-base text-red-800">⛔ تعارض بين: ${drug1} ↔️ ${drug2}</div>
-                  <p class="leading-relaxed"><b>التفاصيل:</b> ${description}</p>
-                </div>
-              `);
-            });
-          });
-        });
+      // C) DISPLAY RESULTS
+      if (foundInteractions.length > 0) {
+        let html = foundInteractions.map(item => `
+          <div class="p-3.5 bg-red-100 border-r-4 border-red-600 rounded-lg text-red-950 space-y-1 text-sm">
+            <div class="font-extrabold text-base text-red-800 flex items-center justify-between">
+              <span>⛔ تعارض بين: ${item.drug1} ↔️ ${item.drug2}</span>
+              <span class="text-xs bg-red-200 text-red-900 px-2 py-0.5 rounded">${item.source}</span>
+            </div>
+            <p class="leading-relaxed"><b>التفاصيل:</b> ${item.description}</p>
+          </div>
+        `).join('');
 
         resultsDiv.innerHTML = `
           <div class="space-y-3">
-            <div class="p-3 bg-red-600 text-white font-bold rounded-xl">🚨 اكتشاف ${messages.length} تداخل(ات) دوائية!</div>
-            ${messages.join('')}
+            <div class="p-3 bg-red-600 text-white font-bold rounded-xl">🚨 تم اكتشاف ${foundInteractions.length} تداخل(ات) دوائية!</div>
+            ${html}
           </div>
         `;
       } else {
         resultsDiv.innerHTML = `
           <div class="p-4 bg-emerald-100 border border-emerald-400 text-emerald-950 font-bold rounded-xl flex items-center gap-2">
-            <span>✅</span> لا يوجد تداخلات دوائية مسجلة بين المواد الفعالة التي تم فحصها.
+            <span>✅</span> لم يتم العثور على تعارضات مسجلة بين المواد الفعالة في قاعدة البيانات الحالية.
           </div>
         `;
       }
